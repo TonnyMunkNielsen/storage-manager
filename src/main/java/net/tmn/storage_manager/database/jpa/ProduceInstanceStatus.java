@@ -1,0 +1,8 @@
+package net.tmn.storage_manager.database.jpa;
+
+public enum ProduceInstanceStatus {
+    ACTIVE,
+    EXPIRED,
+    REPLACED,
+    CONSUMED
+}
