@@ -1,6 +1,7 @@
 package net.tmn.storage_manager.web.rest;
 
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
@@ -76,7 +78,7 @@ public class ProduceTypeController {
             int importedCount = produceTypeService.importProduceTypes(transferData);
             redirectAttributes.addFlashAttribute(
                     "success", "Imported " + importedCount + " produce type" + (importedCount == 1 ? "" : "s") + ".");
-        } catch (Exception e) {
+        } catch (IOException | JacksonException e) {
             log.error("Error importing produce types", e);
             redirectAttributes.addFlashAttribute("error", "Error importing produce types: " + e.getMessage());
         }

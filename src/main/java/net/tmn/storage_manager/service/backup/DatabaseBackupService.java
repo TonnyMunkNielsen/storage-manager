@@ -3,6 +3,7 @@ package net.tmn.storage_manager.service.backup;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -150,7 +151,7 @@ public class DatabaseBackupService {
                     .sorted(Comparator.comparing(BackupInfo::timestamp).reversed())
                     .toList();
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             log.error("Failed to list backups", e);
             return List.of();
         }
@@ -346,11 +347,11 @@ public class DatabaseBackupService {
                         try {
                             Files.delete(path);
                             log.info("Deleted old backup: {}", path.getFileName());
-                        } catch (Exception e) {
+                        } catch (IOException e) {
                             log.warn("Failed to delete old backup: {}", path.getFileName(), e);
                         }
                     });
-        } catch (Exception e) {
+        } catch (IOException e) {
             log.warn("Failed to cleanup old backups", e);
         }
     }
@@ -363,7 +364,7 @@ public class DatabaseBackupService {
             try {
                 long size = Files.size(path);
                 return new BackupInfo(fileName, path.toString(), ts, size);
-            } catch (Exception e) {
+            } catch (IOException e) {
                 log.warn("Failed to get file size for: {}", fileName, e);
                 return new BackupInfo(fileName, path.toString(), ts, 0L);
             }
