@@ -3,17 +3,16 @@ package net.tmn.storage_manager.database.jpa;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-import net.tmn.produce.database.jpa.type.NotificationStatus;
-import net.tmn.produce.database.jpa.type.NotificationTargetType;
-import net.tmn.produce.database.jpa.type.NotificationType;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+import net.tmn.storage_manager.database.jpa.type.NotificationStatus;
+import net.tmn.storage_manager.database.jpa.type.NotificationTargetType;
+import net.tmn.storage_manager.database.jpa.type.NotificationType;
 
-@Entity
 @Table
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor

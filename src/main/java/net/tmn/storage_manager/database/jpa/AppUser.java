@@ -2,15 +2,14 @@ package net.tmn.storage_manager.database.jpa;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.ColumnDefault;
 
-import java.time.LocalDateTime;
-import java.util.UUID;
-
+@Table
 @Entity
-@Table(name = "app_user")
 @Getter
 @Setter
 @NoArgsConstructor

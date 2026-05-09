@@ -3,18 +3,17 @@ package net.tmn.storage_manager.database.jpa;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-import net.tmn.produce.database.jpa.type.ProduceInstanceStatus;
-import org.springframework.format.annotation.DateTimeFormat;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+import net.tmn.storage_manager.database.jpa.type.ProduceInstanceStatus;
+import org.springframework.format.annotation.DateTimeFormat;
 
-@Entity
 @Table
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor
@@ -73,9 +72,8 @@ public class ProduceInstance {
     }
 
     public long getDaysRemaining() {
-        if (bestBeforeDate == null)
-            return 0;
-        return ChronoUnit.DAYS.between(LocalDate.now(),
-                bestBeforeDate.plusDays(produceType.getNotificationDaysModifier()));
+        if (bestBeforeDate == null) return 0;
+        return ChronoUnit.DAYS.between(
+                LocalDate.now(), bestBeforeDate.plusDays(produceType.getNotificationDaysModifier()));
     }
 }

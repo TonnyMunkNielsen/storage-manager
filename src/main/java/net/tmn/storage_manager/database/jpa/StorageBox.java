@@ -2,18 +2,17 @@ package net.tmn.storage_manager.database.jpa;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-import net.tmn.produce.database.jpa.type.StorageBoxStatus;
-import org.springframework.format.annotation.DateTimeFormat;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+import net.tmn.storage_manager.database.jpa.type.StorageBoxStatus;
+import org.springframework.format.annotation.DateTimeFormat;
 
-@Entity
 @Table
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor

@@ -2,17 +2,16 @@ package net.tmn.storage_manager.database.jpa;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-import org.hibernate.annotations.ColumnDefault;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.ColumnDefault;
 
-@Entity
 @Table
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor

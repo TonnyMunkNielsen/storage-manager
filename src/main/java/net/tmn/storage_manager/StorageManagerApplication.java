@@ -5,8 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class StorageManagerApplication {
-
-    public static void main(String[] args) {
+    static void main(String[] args) {
         SpringApplication.run(StorageManagerApplication.class, args);
     }
 }
