@@ -16,8 +16,6 @@ spring:
     flyway:
         enabled: true
         locations: classpath:db/migration
-        # clean-disabled: false
-        # baseline-on-migrate: true
 
     # File Upload Configuration
     # Produce type imports can include embedded image data from many rows.
