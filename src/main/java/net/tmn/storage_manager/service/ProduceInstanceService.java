@@ -11,9 +11,11 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import net.tmn.storage_manager.database.jpa.ProduceInstance;
 import net.tmn.storage_manager.database.jpa.ProduceType;
+import net.tmn.storage_manager.database.jpa.StorageBox;
 import net.tmn.storage_manager.database.jpa.type.ProduceInstanceStatus;
 import net.tmn.storage_manager.database.repository.ProduceInstanceRepository;
 import net.tmn.storage_manager.database.repository.ProduceTypeRepository;
+import net.tmn.storage_manager.database.repository.StorageBoxRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,7 @@ public class ProduceInstanceService {
 
     ProduceInstanceRepository produceInstanceRepository;
     ProduceTypeRepository produceTypeRepository;
+    StorageBoxRepository storageBoxRepository;
 
     @Transactional(readOnly = true)
     public List<ProduceInstance> getAllProduceInstances() {
@@ -63,12 +66,8 @@ public class ProduceInstanceService {
 
     @Transactional
     public ProduceInstance createProduceInstance(ProduceInstance produceInstance) {
-        // Validate produce type exists
-        ProduceType produceType = produceTypeRepository
-                .findById(produceInstance.getProduceType().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Produce type not found"));
-
-        produceInstance.setProduceType(produceType);
+        produceInstance.setProduceType(resolveProduceType(produceInstance));
+        produceInstance.setStorageBox(resolveStorageBox(produceInstance));
 
         return produceInstanceRepository.save(produceInstance);
     }
@@ -82,6 +81,7 @@ public class ProduceInstanceService {
         existingInstance.setTitle(updatedProduceInstance.getTitle());
         existingInstance.setBestBeforeDate(updatedProduceInstance.getBestBeforeDate());
         existingInstance.setStatus(updatedProduceInstance.getStatus());
+        existingInstance.setStorageBox(resolveStorageBox(updatedProduceInstance));
 
         return produceInstanceRepository.save(existingInstance);
     }
@@ -94,6 +94,7 @@ public class ProduceInstanceService {
 
         // Create new instance with same produce type
         newInstance.setProduceType(existingInstance.getProduceType());
+        newInstance.setStorageBox(resolveReplacementStorageBox(existingInstance, newInstance));
         ProduceInstance savedNewInstance = produceInstanceRepository.save(newInstance);
 
         // Mark existing instance as replaced
@@ -125,5 +126,37 @@ public class ProduceInstanceService {
         if (!expiredInstances.isEmpty()) {
             log.info("Updated {} expired produce instances", expiredInstances.size());
         }
+    }
+
+    private ProduceType resolveProduceType(ProduceInstance produceInstance) {
+        if (produceInstance.getProduceType() == null
+                || produceInstance.getProduceType().getId() == null) {
+            throw new IllegalArgumentException("Produce type is required");
+        }
+
+        return produceTypeRepository
+                .findById(produceInstance.getProduceType().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Produce type not found with id: "
+                        + produceInstance.getProduceType().getId()));
+    }
+
+    private StorageBox resolveStorageBox(ProduceInstance produceInstance) {
+        if (produceInstance.getStorageBox() == null
+                || produceInstance.getStorageBox().getId() == null) {
+            throw new IllegalArgumentException("Storage box is required");
+        }
+
+        return storageBoxRepository
+                .findById(produceInstance.getStorageBox().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Storage box not found with id: "
+                        + produceInstance.getStorageBox().getId()));
+    }
+
+    private StorageBox resolveReplacementStorageBox(ProduceInstance existingInstance, ProduceInstance newInstance) {
+        if (newInstance.getStorageBox() == null || newInstance.getStorageBox().getId() == null) {
+            return existingInstance.getStorageBox();
+        }
+
+        return resolveStorageBox(newInstance);
     }
 }

@@ -9,6 +9,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import net.tmn.storage_manager.database.jpa.ProduceType;
 import net.tmn.storage_manager.database.repository.ProduceTypeRepository;
+import net.tmn.storage_manager.service.validation.ImageValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -21,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProduceTypeService {
 
     ProduceTypeRepository produceTypeRepository;
+    ImageValidator imageValidator;
 
     @Transactional(readOnly = true)
     public List<ProduceType> getAllProduceTypes() {
@@ -75,28 +77,27 @@ public class ProduceTypeService {
 
     @Transactional
     public ProduceType createProduceType(ProduceType produceType, MultipartFile image) {
+        return createProduceType(produceType, toUploadedImage(image));
+    }
+
+    @Transactional
+    public ProduceType createProduceType(ProduceType produceType, UploadedImage image) {
         if (produceTypeRepository.existsByName(produceType.getName())) {
             throw new IllegalArgumentException("Produce type with name '" + produceType.getName() + "' already exists");
         }
 
-        if (image != null && !image.isEmpty()) {
-            try {
-                byte[] imageBytes = image.getBytes();
-                log.info("Saving image with {} bytes", imageBytes.length);
-                produceType.setImageData(imageBytes);
-                produceType.setImageContentType(image.getContentType());
-                produceType.setImageFilename(image.getOriginalFilename());
-            } catch (IOException e) {
-                log.error("Failed to save image for produce type: {}", produceType.getName(), e);
-                throw new RuntimeException("Failed to save image", e);
-            }
-        }
+        applyImage(produceType, image);
 
         return produceTypeRepository.save(produceType);
     }
 
     @Transactional
     public ProduceType updateProduceType(UUID id, ProduceType updatedProduceType, MultipartFile image) {
+        return updateProduceType(id, updatedProduceType, toUploadedImage(image));
+    }
+
+    @Transactional
+    public ProduceType updateProduceType(UUID id, ProduceType updatedProduceType, UploadedImage image) {
         ProduceType existingProduceType = produceTypeRepository
                 .findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Produce type not found with id: " + id));
@@ -113,18 +114,7 @@ public class ProduceTypeService {
         existingProduceType.setPrice(updatedProduceType.getPrice());
         existingProduceType.setNotificationDaysModifier(updatedProduceType.getNotificationDaysModifier());
 
-        if (image != null && !image.isEmpty()) {
-            try {
-                byte[] imageBytes = image.getBytes();
-                log.info("Saving image with {} bytes", imageBytes.length);
-                existingProduceType.setImageData(imageBytes);
-                existingProduceType.setImageContentType(image.getContentType());
-                existingProduceType.setImageFilename(image.getOriginalFilename());
-            } catch (IOException e) {
-                log.error("Failed to save image for produce type: {}", existingProduceType.getName(), e);
-                throw new RuntimeException("Failed to save image", e);
-            }
-        }
+        applyImage(existingProduceType, image);
 
         return produceTypeRepository.save(existingProduceType);
     }
@@ -169,5 +159,31 @@ public class ProduceTypeService {
         if (!importedNames.add(normalizedName)) {
             throw new IllegalArgumentException("Import file contains duplicate produce type name: " + normalizedName);
         }
+    }
+
+    private UploadedImage toUploadedImage(MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            return null;
+        }
+
+        imageValidator.validateImage(image);
+        try {
+            return new UploadedImage(image.getOriginalFilename(), image.getContentType(), image.getBytes());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read image", e);
+        }
+    }
+
+    private void applyImage(ProduceType produceType, UploadedImage image) {
+        imageValidator.validateImage(image);
+
+        if (image == null || image.isEmpty()) {
+            return;
+        }
+
+        log.info("Saving image with {} bytes", image.size());
+        produceType.setImageData(image.bytes());
+        produceType.setImageContentType(image.contentType());
+        produceType.setImageFilename(image.filename());
     }
 }

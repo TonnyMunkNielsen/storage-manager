@@ -73,7 +73,9 @@ public class ProduceInstance {
 
     public long getDaysRemaining() {
         if (bestBeforeDate == null) return 0;
-        return ChronoUnit.DAYS.between(
-                LocalDate.now(), bestBeforeDate.plusDays(produceType.getNotificationDaysModifier()));
+        int notificationDaysModifier = produceType == null || produceType.getNotificationDaysModifier() == null
+                ? 0
+                : produceType.getNotificationDaysModifier();
+        return ChronoUnit.DAYS.between(LocalDate.now(), bestBeforeDate.plusDays(notificationDaysModifier));
     }
 }

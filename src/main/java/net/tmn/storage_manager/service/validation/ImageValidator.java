@@ -1,6 +1,7 @@
 package net.tmn.storage_manager.service.validation;
 
 import java.util.Set;
+import net.tmn.storage_manager.service.UploadedImage;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,6 +21,20 @@ public class ImageValidator {
         }
 
         if (!ALLOWED_TYPES.contains(image.getContentType())) {
+            throw new IllegalArgumentException("Only JPEG, PNG and GIF images are allowed");
+        }
+    }
+
+    public void validateImage(UploadedImage image) {
+        if (image == null || image.isEmpty()) {
+            return;
+        }
+
+        if (image.size() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("Image size cannot exceed 5MB");
+        }
+
+        if (!ALLOWED_TYPES.contains(image.contentType())) {
             throw new IllegalArgumentException("Only JPEG, PNG and GIF images are allowed");
         }
     }

@@ -12,11 +12,13 @@ import lombok.extern.slf4j.Slf4j;
 import net.tmn.storage_manager.database.jpa.Notification;
 import net.tmn.storage_manager.database.jpa.ProduceInstance;
 import net.tmn.storage_manager.database.jpa.ProduceType;
+import net.tmn.storage_manager.database.jpa.StorageBox;
 import net.tmn.storage_manager.database.jpa.type.NotificationStatus;
 import net.tmn.storage_manager.database.jpa.type.NotificationTargetType;
 import net.tmn.storage_manager.database.jpa.type.NotificationType;
 import net.tmn.storage_manager.database.repository.NotificationRepository;
 import net.tmn.storage_manager.database.repository.ProduceInstanceRepository;
+import net.tmn.storage_manager.database.repository.StorageBoxRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ public class NotificationService {
 
     NotificationRepository notificationRepository;
     ProduceInstanceRepository produceInstanceRepository;
+    StorageBoxRepository storageBoxRepository;
 
     @NonFinal
     @Value("${app.notification.console.enabled:true}")
@@ -50,6 +53,14 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public List<Notification> getPendingNotifications() {
         return notificationRepository.findByStatusOrderByCreatedAtDesc(NotificationStatus.PENDING);
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationDisplay> getNotificationDisplays() {
+        return notificationRepository.findAll().stream()
+                .sorted((left, right) -> compareCreatedAtDescending(left, right))
+                .map(notification -> new NotificationDisplay(notification, resolveTargetDisplay(notification)))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -152,6 +163,38 @@ public class NotificationService {
                 log.info("Created expiry warning notification for produce: {}", instance.getTitle());
             }
         }
+    }
+
+    private String resolveTargetDisplay(Notification notification) {
+        if (notification.getTargetType() == NotificationTargetType.PRODUCE_INSTANCE) {
+            return produceInstanceRepository
+                    .findById(notification.getTargetId())
+                    .map(ProduceInstance::getTitle)
+                    .orElse("Missing target");
+        }
+
+        if (notification.getTargetType() == NotificationTargetType.STORAGE_BOX) {
+            return storageBoxRepository
+                    .findById(notification.getTargetId())
+                    .map(StorageBox::getBoxNumber)
+                    .map(boxNumber -> "Storage Box #" + boxNumber)
+                    .orElse("Missing target");
+        }
+
+        return "Unknown target";
+    }
+
+    private int compareCreatedAtDescending(Notification left, Notification right) {
+        if (left.getCreatedAt() == null && right.getCreatedAt() == null) {
+            return 0;
+        }
+        if (left.getCreatedAt() == null) {
+            return 1;
+        }
+        if (right.getCreatedAt() == null) {
+            return -1;
+        }
+        return right.getCreatedAt().compareTo(left.getCreatedAt());
     }
 
     private boolean sendNotification(Notification notification) {
