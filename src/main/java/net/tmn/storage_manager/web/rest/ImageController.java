@@ -5,8 +5,8 @@ import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import net.tmn.storage_manager.database.jpa.ProduceType;
-import net.tmn.storage_manager.database.repository.ProduceTypeRepository;
+import net.tmn.storage_manager.database.jpa.ItemType;
+import net.tmn.storage_manager.database.repository.ItemTypeRepository;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -22,20 +22,20 @@ import org.springframework.web.bind.annotation.RestController;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ImageController {
 
-    ProduceTypeRepository produceTypeRepository;
+    ItemTypeRepository itemTypeRepository;
 
-    @GetMapping("/produce-type/{id}")
-    public ResponseEntity<byte[]> getProduceTypeImage(@PathVariable UUID id) {
-        Optional<ProduceType> produceType = produceTypeRepository.findById(id);
+    @GetMapping("/item-type/{id}")
+    public ResponseEntity<byte[]> getItemTypeImage(@PathVariable UUID id) {
+        Optional<ItemType> itemType = itemTypeRepository.findById(id);
 
-        // Return 404 if produce type doesn't exist OR if it has no image data
-        if (produceType.isEmpty()
-                || produceType.get().getImageData() == null
-                || produceType.get().getImageData().length == 0) {
+        // Return 404 if item type doesn't exist OR if it has no image data
+        if (itemType.isEmpty()
+                || itemType.get().getImageData() == null
+                || itemType.get().getImageData().length == 0) {
             return ResponseEntity.notFound().build();
         }
 
-        ProduceType type = produceType.get();
+        ItemType type = itemType.get();
 
         HttpHeaders headers = new HttpHeaders();
 

@@ -1,9 +1,64 @@
 services:
-  postgres:
-    image: 'postgres:latest'
+  postgres-storage-manager-db:
+    image: postgres:16
     environment:
-      - 'POSTGRES_DB=mydatabase'
-      - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=myuser'
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: storagemanagerdb
     ports:
-      - '5432'
+      - "5432:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d storagemanagerdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - storage-manager-network
+
+  pgadmin-storage-manager:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'  # Required for loading servers.json
+    ports:
+      - "5052:80"
+    restart: always
+    depends_on:
+      - postgres-storage-manager-db
+    volumes:
+      - ./pgadmin-config/servers.json:/pgadmin4/servers.json:ro
+      - ./pgadmin-config/.pgpass:/.pgpass:ro
+    networks:
+      - storage-manager-network
+
+  app:
+    build:
+      context: .
+    image: storage-manager-app:local
+    depends_on:
+      postgres-storage-manager-db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-storage-manager-db:5432/storagemanagerdb
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_FLYWAY_ENABLED: "true"
+      APP_BACKUP_DIRECTORY: /data/backups
+      APP_BACKUP_SCHEDULED_CRON: "0 0 2 * * ?"
+    volumes:
+      - ./database_backups:/data/backups
+    networks:
+      - storage-manager-network
+
+volumes:
+  postgres_data:
+
+networks:
+  storage-manager-network:
+    driver: bridge

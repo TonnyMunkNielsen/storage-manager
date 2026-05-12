@@ -13,9 +13,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
-import net.tmn.storage_manager.database.jpa.ProduceInstance;
+import net.tmn.storage_manager.database.jpa.ItemInstance;
+import net.tmn.storage_manager.service.ItemInstanceService;
 import net.tmn.storage_manager.service.NotificationService;
-import net.tmn.storage_manager.service.ProduceInstanceService;
 import net.tmn.storage_manager.service.StorageBoxService;
 
 @Route(value = "", layout = MainLayout.class)
@@ -23,15 +23,15 @@ import net.tmn.storage_manager.service.StorageBoxService;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DashboardView extends VerticalLayout {
 
-    ProduceInstanceService produceInstanceService;
+    ItemInstanceService itemInstanceService;
     StorageBoxService storageBoxService;
     NotificationService notificationService;
 
     public DashboardView(
-            ProduceInstanceService produceInstanceService,
+            ItemInstanceService itemInstanceService,
             StorageBoxService storageBoxService,
             NotificationService notificationService) {
-        this.produceInstanceService = produceInstanceService;
+        this.itemInstanceService = itemInstanceService;
         this.storageBoxService = storageBoxService;
         this.notificationService = notificationService;
 
@@ -48,30 +48,29 @@ public class DashboardView extends VerticalLayout {
     }
 
     private VerticalLayout createDashboardContent() {
+        itemInstanceService.updateExpiredInstances();
+
         LocalDate today = LocalDate.now();
-        List<ProduceInstance> activeProduces = produceInstanceService.getActiveProduceInstances();
-        List<ProduceInstance> expiredProduces = produceInstanceService.getExpiredProduceInstances();
-        List<ProduceInstance> expiringProduces =
-                produceInstanceService.getProduceInstancesExpiringBetween(today, today.plusDays(7));
+        List<ItemInstance> activeItems = itemInstanceService.getActiveItemInstances();
+        List<ItemInstance> expiredItems = itemInstanceService.getExpiredItemInstances();
+        List<ItemInstance> expiringItems =
+                itemInstanceService.getItemInstancesExpiringBetween(today, today.plusDays(7));
 
         VerticalLayout content = new VerticalLayout();
         content.setPadding(false);
         content.setSpacing(true);
         content.setWidthFull();
-        content.add(
-                createSummary(activeProduces, expiredProduces, expiringProduces), createExpiredGrid(expiredProduces));
-        content.add(createExpiringGrid(expiringProduces));
+        content.add(createSummary(activeItems, expiredItems, expiringItems), createExpiredGrid(expiredItems));
+        content.add(createExpiringGrid(expiringItems));
         return content;
     }
 
     private HorizontalLayout createSummary(
-            List<ProduceInstance> activeProduces,
-            List<ProduceInstance> expiredProduces,
-            List<ProduceInstance> expiringProduces) {
+            List<ItemInstance> activeItems, List<ItemInstance> expiredItems, List<ItemInstance> expiringItems) {
         HorizontalLayout summary = new HorizontalLayout(
-                summaryTile("Active Produces", activeProduces.size(), "primary"),
-                summaryTile("Expired Produces", expiredProduces.size(), "error"),
-                summaryTile("Expiring Soon", expiringProduces.size(), "warning"),
+                summaryTile("Active Items", activeItems.size(), "primary"),
+                summaryTile("Expired Items", expiredItems.size(), "error"),
+                summaryTile("Expiring Soon", expiringItems.size(), "warning"),
                 summaryTile(
                         "Storage Boxes", storageBoxService.getAllStorageBoxes().size(), "contrast"),
                 summaryTile(
@@ -101,43 +100,41 @@ public class DashboardView extends VerticalLayout {
         return tile;
     }
 
-    private Div createExpiredGrid(List<ProduceInstance> expiredProduces) {
-        Grid<ProduceInstance> grid = baseProduceGrid("No expired produce instances.");
-        grid.addColumn(produce -> ChronoUnit.DAYS.between(produce.getBestBeforeDate(), LocalDate.now()))
+    private Div createExpiredGrid(List<ItemInstance> expiredItems) {
+        Grid<ItemInstance> grid = baseItemGrid("No expired item instances.");
+        grid.addColumn(item -> ChronoUnit.DAYS.between(item.getBestBeforeDate(), LocalDate.now()))
                 .setHeader("Days Expired")
                 .setAutoWidth(true);
-        grid.setItems(expiredProduces);
-        return section("Expired Produces", grid);
+        grid.setItems(expiredItems);
+        return section("Expired Items", grid);
     }
 
-    private Div createExpiringGrid(List<ProduceInstance> expiringProduces) {
-        Grid<ProduceInstance> grid = baseProduceGrid("No produce instances expiring soon.");
-        grid.addColumn(produce -> ChronoUnit.DAYS.between(LocalDate.now(), produce.getBestBeforeDate()))
+    private Div createExpiringGrid(List<ItemInstance> expiringItems) {
+        Grid<ItemInstance> grid = baseItemGrid("No item instances expiring soon.");
+        grid.addColumn(item -> ChronoUnit.DAYS.between(LocalDate.now(), item.getBestBeforeDate()))
                 .setHeader("Days Remaining")
                 .setAutoWidth(true);
-        grid.setItems(expiringProduces);
-        return section("Produces Expiring Soon", grid);
+        grid.setItems(expiringItems);
+        return section("Items Expiring Soon", grid);
     }
 
-    private Grid<ProduceInstance> baseProduceGrid(String emptyText) {
-        Grid<ProduceInstance> grid = new Grid<>(ProduceInstance.class, false);
+    private Grid<ItemInstance> baseItemGrid(String emptyText) {
+        Grid<ItemInstance> grid = new Grid<>(ItemInstance.class, false);
         grid.setWidthFull();
         grid.setAllRowsVisible(true);
         grid.setEmptyStateText(emptyText);
-        grid.addColumn(ProduceInstance::getTitle)
+        grid.addColumn(ItemInstance::getTitle)
                 .setHeader("Title")
                 .setAutoWidth(true)
                 .setFlexGrow(1);
-        grid.addColumn(VaadinViewUtils::produceTypeName)
-                .setHeader("Produce Type")
-                .setAutoWidth(true);
-        grid.addColumn(produce -> VaadinViewUtils.formatDate(produce.getBestBeforeDate()))
+        grid.addColumn(VaadinViewUtils::itemTypeName).setHeader("Item Type").setAutoWidth(true);
+        grid.addColumn(item -> VaadinViewUtils.formatDate(item.getBestBeforeDate()))
                 .setHeader("Best Before")
                 .setAutoWidth(true);
         return grid;
     }
 
-    private Div section(String title, Grid<ProduceInstance> grid) {
+    private Div section(String title, Grid<ItemInstance> grid) {
         Div section = new Div();
         section.setWidthFull();
         H2 heading = new H2(title);

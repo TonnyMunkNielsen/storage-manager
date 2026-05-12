@@ -1,6 +1,6 @@
 package net.tmn.storage_manager.database.jpa.type;
 
 public enum NotificationTargetType {
-    PRODUCE_INSTANCE,
+    ITEM_INSTANCE,
     STORAGE_BOX
 }

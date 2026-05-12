@@ -9,25 +9,25 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import net.tmn.storage_manager.database.jpa.type.ProduceInstanceStatus;
+import net.tmn.storage_manager.database.jpa.type.ItemInstanceStatus;
 import org.springframework.format.annotation.DateTimeFormat;
 
-@Table
+@Table(name = "item_instance")
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ProduceInstance {
+public class ItemInstance {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @NotNull(message = "Produce type is required")
-    @JoinColumn(name = "produce_type_id", nullable = false, updatable = false)
-    ProduceType produceType;
+    @NotNull(message = "Item type is required")
+    @JoinColumn(name = "item_type_id", nullable = false, updatable = false)
+    ItemType itemType;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @NotNull(message = "Storage box is required")
@@ -45,11 +45,11 @@ public class ProduceInstance {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    ProduceInstanceStatus status = ProduceInstanceStatus.ACTIVE;
+    ItemInstanceStatus status = ItemInstanceStatus.ACTIVE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "replaced_by_id")
-    ProduceInstance replacedBy;
+    ItemInstance replacedBy;
 
     @Column(name = "replaced_at")
     LocalDateTime replacedAt;
@@ -73,9 +73,9 @@ public class ProduceInstance {
 
     public long getDaysRemaining() {
         if (bestBeforeDate == null) return 0;
-        int notificationDaysModifier = produceType == null || produceType.getNotificationDaysModifier() == null
+        int notificationDaysModifier = itemType == null || itemType.getNotificationDaysModifier() == null
                 ? 0
-                : produceType.getNotificationDaysModifier();
+                : itemType.getNotificationDaysModifier();
         return ChronoUnit.DAYS.between(LocalDate.now(), bestBeforeDate.plusDays(notificationDaysModifier));
     }
 }

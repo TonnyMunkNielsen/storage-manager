@@ -13,18 +13,18 @@ import org.springframework.stereotype.Service;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ScheduledTaskService {
 
-    ProduceInstanceService produceInstanceService;
+    ItemInstanceService itemInstanceService;
     NotificationService notificationService;
 
     @Scheduled(fixedRate = 600000) // Run every 10 minutes
-    public void checkExpiredProduces() {
-        log.debug("Running scheduled check for expired produces...");
+    public void checkExpiredItems() {
+        log.debug("Running scheduled check for expired items...");
         try {
-            produceInstanceService.updateExpiredInstances();
+            itemInstanceService.updateExpiredInstances();
             notificationService.checkAndCreateNotifications();
             notificationService.processPendingNotifications();
         } catch (Exception e) {
-            log.error("Error during scheduled produce check", e);
+            log.error("Error during scheduled item check", e);
         }
     }
 }

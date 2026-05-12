@@ -9,15 +9,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
+import net.tmn.storage_manager.database.jpa.ItemInstance;
+import net.tmn.storage_manager.database.jpa.ItemType;
 import net.tmn.storage_manager.database.jpa.Notification;
-import net.tmn.storage_manager.database.jpa.ProduceInstance;
-import net.tmn.storage_manager.database.jpa.ProduceType;
 import net.tmn.storage_manager.database.jpa.StorageBox;
 import net.tmn.storage_manager.database.jpa.type.NotificationStatus;
 import net.tmn.storage_manager.database.jpa.type.NotificationTargetType;
 import net.tmn.storage_manager.database.jpa.type.NotificationType;
+import net.tmn.storage_manager.database.repository.ItemInstanceRepository;
 import net.tmn.storage_manager.database.repository.NotificationRepository;
-import net.tmn.storage_manager.database.repository.ProduceInstanceRepository;
 import net.tmn.storage_manager.database.repository.StorageBoxRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationService {
 
     NotificationRepository notificationRepository;
-    ProduceInstanceRepository produceInstanceRepository;
+    ItemInstanceRepository itemInstanceRepository;
     StorageBoxRepository storageBoxRepository;
 
     @NonFinal
@@ -64,21 +64,20 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public List<Notification> getNotificationsByProduceInstance(UUID produceInstanceId) {
-        return notificationRepository.findByTargetTypeAndTargetId(
-                NotificationTargetType.PRODUCE_INSTANCE, produceInstanceId);
+    public List<Notification> getNotificationsByItemInstance(UUID itemInstanceId) {
+        return notificationRepository.findByTargetTypeAndTargetId(NotificationTargetType.ITEM_INSTANCE, itemInstanceId);
     }
 
     @Transactional
     public void checkAndCreateNotifications() {
-        log.debug("Checking for produces requiring notifications...");
+        log.debug("Checking for items requiring notifications...");
 
-        // Check for expired produces
-        List<ProduceInstance> expiredInstances = produceInstanceRepository.findInstancesExpiredBefore(LocalDate.now());
+        // Check for expired items
+        List<ItemInstance> expiredInstances = itemInstanceRepository.findInstancesExpiredBefore(LocalDate.now());
         expiredInstances.forEach(this::createExpiredNotification);
 
-        // Check for produces expiring soon
-        List<ProduceInstance> activeInstances = produceInstanceRepository.findAllActiveInstances();
+        // Check for items expiring soon
+        List<ItemInstance> activeInstances = itemInstanceRepository.findAllActiveInstances();
         activeInstances.forEach(this::createExpiryWarningNotification);
 
         log.debug("Notification check completed");
@@ -107,51 +106,51 @@ public class NotificationService {
         }
     }
 
-    private void createExpiredNotification(ProduceInstance instance) {
+    private void createExpiredNotification(ItemInstance instance) {
         // Check if notification already exists
         boolean notificationExists = notificationRepository.existsByTargetTypeAndTargetIdAndNotificationTypeAndStatus(
-                NotificationTargetType.PRODUCE_INSTANCE,
+                NotificationTargetType.ITEM_INSTANCE,
                 instance.getId(),
                 NotificationType.EXPIRED,
                 NotificationStatus.PENDING);
 
         if (!notificationExists) {
             Notification notification = new Notification();
-            notification.setTargetType(NotificationTargetType.PRODUCE_INSTANCE);
+            notification.setTargetType(NotificationTargetType.ITEM_INSTANCE);
             notification.setTargetId(instance.getId());
             notification.setNotificationType(NotificationType.EXPIRED);
-            notification.setMessage("Produce '%s' has expired (best before: %s)"
+            notification.setMessage("Item '%s' has expired (best before: %s)"
                     .formatted(instance.getTitle(), instance.getBestBeforeDate()));
             notification.setStatus(NotificationStatus.PENDING);
 
             notificationRepository.save(notification);
-            log.info("Created expired notification for produce: {}", instance.getTitle());
+            log.info("Created expired notification for item: {}", instance.getTitle());
         }
     }
 
-    private void createExpiryWarningNotification(ProduceInstance instance) {
-        ProduceType produceType = instance.getProduceType();
-        if (produceType.getNotificationDaysModifier() == null || produceType.getNotificationDaysModifier() <= 0) {
+    private void createExpiryWarningNotification(ItemInstance instance) {
+        ItemType itemType = instance.getItemType();
+        if (itemType.getNotificationDaysModifier() == null || itemType.getNotificationDaysModifier() <= 0) {
             return;
         }
 
-        LocalDate warningDate = instance.getBestBeforeDate().minusDays(produceType.getNotificationDaysModifier());
+        LocalDate warningDate = instance.getBestBeforeDate().minusDays(itemType.getNotificationDaysModifier());
 
         if (LocalDate.now().isAfter(warningDate) || LocalDate.now().equals(warningDate)) {
             // Check if notification already exists
             boolean notificationExists =
                     notificationRepository.existsByTargetTypeAndTargetIdAndNotificationTypeAndStatus(
-                            NotificationTargetType.PRODUCE_INSTANCE,
+                            NotificationTargetType.ITEM_INSTANCE,
                             instance.getId(),
                             NotificationType.EXPIRY_WARNING,
                             NotificationStatus.PENDING);
 
             if (!notificationExists) {
                 Notification notification = new Notification();
-                notification.setTargetType(NotificationTargetType.PRODUCE_INSTANCE);
+                notification.setTargetType(NotificationTargetType.ITEM_INSTANCE);
                 notification.setTargetId(instance.getId());
                 notification.setNotificationType(NotificationType.EXPIRY_WARNING);
-                notification.setMessage("Produce '%s' will expire on %s (%d days)"
+                notification.setMessage("Item '%s' will expire on %s (%d days)"
                         .formatted(
                                 instance.getTitle(),
                                 instance.getBestBeforeDate(),
@@ -160,16 +159,16 @@ public class NotificationService {
                 notification.setStatus(NotificationStatus.PENDING);
 
                 notificationRepository.save(notification);
-                log.info("Created expiry warning notification for produce: {}", instance.getTitle());
+                log.info("Created expiry warning notification for item: {}", instance.getTitle());
             }
         }
     }
 
     private String resolveTargetDisplay(Notification notification) {
-        if (notification.getTargetType() == NotificationTargetType.PRODUCE_INSTANCE) {
-            return produceInstanceRepository
+        if (notification.getTargetType() == NotificationTargetType.ITEM_INSTANCE) {
+            return itemInstanceRepository
                     .findById(notification.getTargetId())
-                    .map(ProduceInstance::getTitle)
+                    .map(ItemInstance::getTitle)
                     .orElse("Missing target");
         }
 

@@ -6,21 +6,21 @@ import java.time.Instant;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record ProduceTypeTransferData(int schemaVersion, Instant exportedAt, List<ProduceTypeRecord> produceTypes) {
+public record ItemTypeTransferData(int schemaVersion, Instant exportedAt, List<ItemTypeRecord> itemTypes) {
 
     public static final int CURRENT_SCHEMA_VERSION = 1;
 
-    public ProduceTypeTransferData {
+    public ItemTypeTransferData {
         exportedAt = exportedAt == null ? Instant.now() : exportedAt;
-        produceTypes = produceTypes == null ? List.of() : List.copyOf(produceTypes);
+        itemTypes = itemTypes == null ? List.of() : List.copyOf(itemTypes);
     }
 
-    public ProduceTypeTransferData(List<ProduceTypeRecord> produceTypes) {
-        this(CURRENT_SCHEMA_VERSION, Instant.now(), produceTypes);
+    public ItemTypeTransferData(List<ItemTypeRecord> itemTypes) {
+        this(CURRENT_SCHEMA_VERSION, Instant.now(), itemTypes);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ProduceTypeRecord(
+    public record ItemTypeRecord(
             String name,
             String description,
             BigDecimal price,

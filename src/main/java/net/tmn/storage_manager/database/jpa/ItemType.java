@@ -10,14 +10,14 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.ColumnDefault;
 
-@Table
+@Table(name = "item_type")
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ProduceType {
+public class ItemType {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     UUID id;
@@ -51,8 +51,8 @@ public class ProduceType {
     @Column(name = "updated_at", nullable = false)
     LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "produceType", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    List<ProduceInstance> instances;
+    @OneToMany(mappedBy = "itemType", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    List<ItemInstance> instances;
 
     @PrePersist
     protected void onCreate() {

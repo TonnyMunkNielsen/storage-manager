@@ -18,7 +18,7 @@ spring:
         locations: classpath:db/migration
 
     # File Upload Configuration
-    # Produce type imports can include embedded image data from many rows.
+    # Item type imports can include embedded image data from many rows.
     servlet:
         multipart:
             max-file-size: 100MB
@@ -37,8 +37,9 @@ server:
 # Logging
 logging:
     level:
-        com:
-            produce: DEBUG
+        net:
+            tmn:
+                '[storage_manager]': DEBUG
         org:
             springframework:
                 web: DEBUG

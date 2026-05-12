@@ -1,5 +1,5 @@
--- Create produce_type table
-CREATE TABLE produce_type
+-- Create item_type table
+CREATE TABLE item_type
 (
     id                         UUID PRIMARY KEY,
     name                       VARCHAR(255) NOT NULL UNIQUE,
@@ -23,11 +23,11 @@ CREATE TABLE storage_box
     updated_at             TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create produce_instance table
-CREATE TABLE produce_instance
+-- Create item_instance table
+CREATE TABLE item_instance
 (
     id               UUID PRIMARY KEY,
-    produce_type_id  UUID         NOT NULL,
+    item_type_id  UUID         NOT NULL,
     storage_box_id   UUID         NOT NULL,
     replaced_by_id   UUID,
     title            VARCHAR(255) NOT NULL,
@@ -36,9 +36,9 @@ CREATE TABLE produce_instance
     replaced_at      TIMESTAMP,
     created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (produce_type_id) REFERENCES produce_type (id) ON DELETE CASCADE,
+    FOREIGN KEY (item_type_id) REFERENCES item_type (id) ON DELETE CASCADE,
     FOREIGN KEY (storage_box_id) REFERENCES storage_box (id),
-    FOREIGN KEY (replaced_by_id) REFERENCES produce_instance (id)
+    FOREIGN KEY (replaced_by_id) REFERENCES item_instance (id)
 );
 
 -- Create notification table
@@ -46,7 +46,7 @@ CREATE TABLE notification
 (
     id                UUID PRIMARY KEY,
     target_id         UUID        NOT NULL,
-    target_type       VARCHAR(50) NOT NULL, -- 'PRODUCE_INSTANCE' or 'STORAGE_BOX'
+    target_type       VARCHAR(50) NOT NULL, -- 'ITEM_INSTANCE' or 'STORAGE_BOX'
     notification_type VARCHAR(50) NOT NULL,
     message           TEXT        NOT NULL,
     sent_at           TIMESTAMP,
@@ -69,10 +69,10 @@ CREATE TABLE app_user
 
 
 -- Create indexes for better performance
-CREATE INDEX idx_produce_instance_produce_type_id ON produce_instance (produce_type_id);
-CREATE INDEX idx_produce_instance_storage_box_id ON produce_instance (storage_box_id);
-CREATE INDEX idx_produce_instance_best_before_date ON produce_instance (best_before_date);
-CREATE INDEX idx_produce_instance_status ON produce_instance (status);
+CREATE INDEX idx_item_instance_item_type_id ON item_instance (item_type_id);
+CREATE INDEX idx_item_instance_storage_box_id ON item_instance (storage_box_id);
+CREATE INDEX idx_item_instance_best_before_date ON item_instance (best_before_date);
+CREATE INDEX idx_item_instance_status ON item_instance (status);
 CREATE INDEX idx_notification_target ON notification (target_id, target_type);
 CREATE INDEX idx_notification_status ON notification (status);
 CREATE INDEX idx_app_user_username ON app_user (username);
@@ -89,13 +89,13 @@ END;
 $$
 language 'plpgsql';
 
-CREATE TRIGGER update_produce_type_updated_at
+CREATE TRIGGER update_item_type_updated_at
     BEFORE UPDATE
-    ON produce_type
+    ON item_type
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_produce_instance_updated_at
+CREATE TRIGGER update_item_instance_updated_at
     BEFORE UPDATE
-    ON produce_instance
+    ON item_instance
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_notification_updated_at
     BEFORE UPDATE

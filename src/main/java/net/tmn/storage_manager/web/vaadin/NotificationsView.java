@@ -23,12 +23,9 @@ import net.tmn.storage_manager.service.NotificationService;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class NotificationsView extends VerticalLayout {
 
-    NotificationService notificationService;
     Grid<NotificationDisplay> grid = new Grid<>(NotificationDisplay.class, false);
 
     public NotificationsView(NotificationService notificationService) {
-        this.notificationService = notificationService;
-
         setSizeFull();
         setPadding(true);
         configureGrid();

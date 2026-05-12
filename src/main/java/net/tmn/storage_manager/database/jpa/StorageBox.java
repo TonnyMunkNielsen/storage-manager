@@ -43,7 +43,7 @@ public class StorageBox {
     LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "storageBox", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    List<ProduceInstance> produceInstances;
+    List<ItemInstance> itemInstances;
 
     @PrePersist
     protected void onCreate() {

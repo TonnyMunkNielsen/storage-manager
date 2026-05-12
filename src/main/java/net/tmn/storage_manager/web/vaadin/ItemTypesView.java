@@ -34,25 +34,26 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
-import net.tmn.storage_manager.database.jpa.ProduceType;
-import net.tmn.storage_manager.service.ProduceTypeService;
-import net.tmn.storage_manager.service.ProduceTypeTransferData;
+import net.tmn.storage_manager.database.jpa.ItemType;
+import net.tmn.storage_manager.service.ItemTypeService;
+import net.tmn.storage_manager.service.ItemTypeTransferData;
 import net.tmn.storage_manager.service.UploadedImage;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
-@Route(value = "produce-types", layout = MainLayout.class)
-@PageTitle("Produce Types")
+@Route(value = "item-types", layout = MainLayout.class)
+@PageTitle("Item Types")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ProduceTypesView extends VerticalLayout {
+public class ItemTypesView extends VerticalLayout {
 
     static final int MAX_IMAGE_SIZE = 5 * 1024 * 1024;
     static final int MAX_IMPORT_SIZE = 100 * 1024 * 1024;
     static final DateTimeFormatter EXPORT_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
-    final ProduceTypeService produceTypeService;
+    final ItemTypeService itemTypeService;
     final JsonMapper jsonMapper;
-    final Grid<ProduceType> grid = new Grid<>(ProduceType.class, false);
-    final Binder<ProduceType> binder = new Binder<>(ProduceType.class);
+    final Grid<ItemType> grid = new Grid<>(ItemType.class, false);
+    final Binder<ItemType> binder = new Binder<>(ItemType.class);
     final Dialog editorDialog = new Dialog();
     final TextField name = new TextField("Name");
     final TextArea description = new TextArea("Description");
@@ -60,11 +61,11 @@ public class ProduceTypesView extends VerticalLayout {
     final IntegerField notificationDaysModifier = new IntegerField("Notification days modifier");
     final Div imagePreview = new Div();
 
-    ProduceType editedProduceType;
+    ItemType editedItemType;
     UploadedImage uploadedImage;
 
-    public ProduceTypesView(ProduceTypeService produceTypeService, JsonMapper jsonMapper) {
-        this.produceTypeService = produceTypeService;
+    public ItemTypesView(ItemTypeService itemTypeService, JsonMapper jsonMapper) {
+        this.itemTypeService = itemTypeService;
         this.jsonMapper = jsonMapper;
 
         setSizeFull();
@@ -76,11 +77,11 @@ public class ProduceTypesView extends VerticalLayout {
     }
 
     private HorizontalLayout createHeader() {
-        H2 header = new H2("Produce Types");
+        H2 header = new H2("Item Types");
         header.getStyle().set("margin", "0");
 
-        Button create = VaadinViewUtils.primaryButton("Add Produce Type", VaadinIcon.PLUS);
-        create.addClickListener(event -> openEditor(newProduceType()));
+        Button create = VaadinViewUtils.primaryButton("Add Item Type", VaadinIcon.PLUS);
+        create.addClickListener(event -> openEditor(newItemType()));
 
         HorizontalLayout actions = new HorizontalLayout(create, createExportAnchor(), createImportUpload());
         actions.setAlignItems(Alignment.CENTER);
@@ -96,16 +97,13 @@ public class ProduceTypesView extends VerticalLayout {
 
     private void configureGrid() {
         grid.setSizeFull();
-        grid.setEmptyStateText("No produce types found.");
+        grid.setEmptyStateText("No item types found.");
         grid.addComponentColumn(this::thumbnailOrEmpty)
                 .setHeader("Image")
                 .setAutoWidth(true)
                 .setFlexGrow(0);
-        grid.addColumn(ProduceType::getName)
-                .setHeader("Name")
-                .setAutoWidth(true)
-                .setSortable(true);
-        grid.addColumn(ProduceType::getDescription).setHeader("Description").setFlexGrow(1);
+        grid.addColumn(ItemType::getName).setHeader("Name").setAutoWidth(true).setSortable(true);
+        grid.addColumn(ItemType::getDescription).setHeader("Description").setFlexGrow(1);
         grid.addColumn(type -> VaadinViewUtils.formatMoney(type.getPrice()))
                 .setHeader("Price")
                 .setAutoWidth(true);
@@ -115,23 +113,23 @@ public class ProduceTypesView extends VerticalLayout {
         grid.addComponentColumn(this::actions).setHeader("Actions").setAutoWidth(true);
     }
 
-    private Component thumbnailOrEmpty(ProduceType produceType) {
-        if (!VaadinViewUtils.hasImage(produceType)) {
+    private Component thumbnailOrEmpty(ItemType itemType) {
+        if (!VaadinViewUtils.hasImage(itemType)) {
             return VaadinViewUtils.emptyText("No image");
         }
 
-        Image image = VaadinViewUtils.thumbnail(produceType);
-        image.addClickListener(event -> openImageDialog(produceType));
+        Image image = VaadinViewUtils.thumbnail(itemType);
+        image.addClickListener(event -> openImageDialog(itemType));
         return image;
     }
 
-    private HorizontalLayout actions(ProduceType produceType) {
+    private HorizontalLayout actions(ItemType itemType) {
         Button edit = VaadinViewUtils.iconButton(VaadinIcon.EDIT, "Edit");
-        edit.addClickListener(event -> openEditor(produceType));
+        edit.addClickListener(event -> openEditor(itemType));
 
         Button delete = VaadinViewUtils.iconButton(VaadinIcon.TRASH, "Delete");
         delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
-        delete.addClickListener(event -> confirmDelete(produceType));
+        delete.addClickListener(event -> confirmDelete(itemType));
 
         return new HorizontalLayout(edit, delete);
     }
@@ -145,31 +143,31 @@ public class ProduceTypesView extends VerticalLayout {
         binder.forField(name)
                 .asRequired("Name is required")
                 .withValidator(value -> value != null && !value.trim().isEmpty(), "Name is required")
-                .bind(ProduceType::getName, ProduceType::setName);
-        binder.forField(description).bind(ProduceType::getDescription, ProduceType::setDescription);
+                .bind(ItemType::getName, ItemType::setName);
+        binder.forField(description).bind(ItemType::getDescription, ItemType::setDescription);
         binder.forField(price)
                 .withValidator(value -> value == null || value.signum() >= 0, "Price cannot be negative")
-                .bind(ProduceType::getPrice, ProduceType::setPrice);
+                .bind(ItemType::getPrice, ItemType::setPrice);
         binder.forField(notificationDaysModifier)
                 .asRequired("Notification days modifier is required")
                 .withValidator(value -> value != null && value >= 0, "Notification days cannot be negative")
-                .bind(ProduceType::getNotificationDaysModifier, ProduceType::setNotificationDaysModifier);
+                .bind(ItemType::getNotificationDaysModifier, ItemType::setNotificationDaysModifier);
     }
 
-    private ProduceType newProduceType() {
-        ProduceType produceType = new ProduceType();
-        produceType.setPrice(BigDecimal.ZERO);
-        produceType.setNotificationDaysModifier(0);
-        return produceType;
+    private ItemType newItemType() {
+        ItemType itemType = new ItemType();
+        itemType.setPrice(BigDecimal.ZERO);
+        itemType.setNotificationDaysModifier(0);
+        return itemType;
     }
 
-    private void openEditor(ProduceType produceType) {
-        editedProduceType = produceType;
+    private void openEditor(ItemType itemType) {
+        editedItemType = itemType;
         uploadedImage = null;
 
         editorDialog.removeAll();
-        editorDialog.setHeaderTitle(produceType.getId() == null ? "Add Produce Type" : "Edit Produce Type");
-        binder.readBean(editedProduceType);
+        editorDialog.setHeaderTitle(itemType.getId() == null ? "Add Item Type" : "Edit Item Type");
+        binder.readBean(editedItemType);
         updateImagePreview();
 
         FormLayout form =
@@ -236,9 +234,9 @@ public class ProduceTypesView extends VerticalLayout {
             return;
         }
 
-        if (VaadinViewUtils.hasImage(editedProduceType)) {
+        if (VaadinViewUtils.hasImage(editedItemType)) {
             imagePreview.add(
-                    previewImage(new Image(VaadinViewUtils.imageUrl(editedProduceType), editedProduceType.getName())));
+                    previewImage(new Image(VaadinViewUtils.imageUrl(editedItemType), editedItemType.getName())));
             return;
         }
 
@@ -254,15 +252,15 @@ public class ProduceTypesView extends VerticalLayout {
 
     private void save() {
         try {
-            binder.writeBean(editedProduceType);
-            editedProduceType.setName(editedProduceType.getName().trim());
+            binder.writeBean(editedItemType);
+            editedItemType.setName(editedItemType.getName().trim());
 
-            if (editedProduceType.getId() == null) {
-                produceTypeService.createProduceType(editedProduceType, uploadedImage);
-                VaadinViewUtils.success("Produce type created.");
+            if (editedItemType.getId() == null) {
+                itemTypeService.createItemType(editedItemType, uploadedImage);
+                VaadinViewUtils.success("Item type created.");
             } else {
-                produceTypeService.updateProduceType(editedProduceType.getId(), editedProduceType, uploadedImage);
-                VaadinViewUtils.success("Produce type updated.");
+                itemTypeService.updateItemType(editedItemType.getId(), editedItemType, uploadedImage);
+                VaadinViewUtils.success("Item type updated.");
             }
             editorDialog.close();
             refreshGrid();
@@ -286,15 +284,15 @@ public class ProduceTypesView extends VerticalLayout {
 
     private ByteArrayInputStream createExportStream() {
         try {
-            return new ByteArrayInputStream(jsonMapper.writeValueAsBytes(produceTypeService.exportProduceTypes()));
-        } catch (Exception e) {
-            String fallback = "{\"error\":\"Failed to export produce types\"}";
+            return new ByteArrayInputStream(jsonMapper.writeValueAsBytes(itemTypeService.exportItemTypes()));
+        } catch (JacksonException e) {
+            String fallback = "{\"error\":\"Failed to export item types\"}";
             return new ByteArrayInputStream(fallback.getBytes(StandardCharsets.UTF_8));
         }
     }
 
     private String exportFilename() {
-        return "produce-types-" + LocalDateTime.now().format(EXPORT_FORMATTER) + ".json";
+        return "item-types-" + LocalDateTime.now().format(EXPORT_FORMATTER) + ".json";
     }
 
     private Upload createImportUpload() {
@@ -320,20 +318,19 @@ public class ProduceTypesView extends VerticalLayout {
 
     private void confirmImport(byte[] bytes, Upload upload) {
         ConfirmDialog confirm = new ConfirmDialog();
-        confirm.setHeader("Import produce types");
-        confirm.setText("Importing creates new produce types and updates existing ones with matching names.");
+        confirm.setHeader("Import item types");
+        confirm.setText("Importing creates new item types and updates existing ones with matching names.");
         confirm.setCancelable(true);
         confirm.setConfirmText("Import");
         confirm.setConfirmButtonTheme("primary");
         confirm.addConfirmListener(event -> {
             try {
-                ProduceTypeTransferData transferData =
-                        jsonMapper.readValue(new ByteArrayInputStream(bytes), ProduceTypeTransferData.class);
-                int importedCount = produceTypeService.importProduceTypes(transferData);
-                VaadinViewUtils.success(
-                        "Imported " + importedCount + " produce type" + (importedCount == 1 ? "." : "s."));
+                ItemTypeTransferData transferData =
+                        jsonMapper.readValue(new ByteArrayInputStream(bytes), ItemTypeTransferData.class);
+                int importedCount = itemTypeService.importItemTypes(transferData);
+                VaadinViewUtils.success("Imported " + importedCount + " item type" + (importedCount == 1 ? "." : "s."));
                 refreshGrid();
-            } catch (Exception e) {
+            } catch (JacksonException e) {
                 VaadinViewUtils.error("Import failed: " + e.getMessage());
             } finally {
                 upload.clearFileList();
@@ -343,10 +340,10 @@ public class ProduceTypesView extends VerticalLayout {
         confirm.open();
     }
 
-    private void openImageDialog(ProduceType produceType) {
+    private void openImageDialog(ItemType itemType) {
         Dialog dialog = new Dialog();
-        dialog.setHeaderTitle(produceType.getName());
-        Image image = new Image(VaadinViewUtils.imageUrl(produceType), produceType.getName());
+        dialog.setHeaderTitle(itemType.getName());
+        Image image = new Image(VaadinViewUtils.imageUrl(itemType), itemType.getName());
         image.setMaxWidth("82vw");
         image.setMaxHeight("72vh");
         image.getStyle().set("object-fit", "contain");
@@ -355,17 +352,17 @@ public class ProduceTypesView extends VerticalLayout {
         dialog.open();
     }
 
-    private void confirmDelete(ProduceType produceType) {
+    private void confirmDelete(ItemType itemType) {
         ConfirmDialog confirm = new ConfirmDialog();
-        confirm.setHeader("Delete produce type");
-        confirm.setText("Delete " + produceType.getName() + "?");
+        confirm.setHeader("Delete item type");
+        confirm.setText("Delete " + itemType.getName() + "?");
         confirm.setCancelable(true);
         confirm.setConfirmText("Delete");
         confirm.setConfirmButtonTheme("error primary");
         confirm.addConfirmListener(event -> {
             try {
-                produceTypeService.deleteProduceType(produceType.getId());
-                VaadinViewUtils.success("Produce type deleted.");
+                itemTypeService.deleteItemType(itemType.getId());
+                VaadinViewUtils.success("Item type deleted.");
                 refreshGrid();
             } catch (RuntimeException e) {
                 VaadinViewUtils.error(e.getMessage());
@@ -374,11 +371,12 @@ public class ProduceTypesView extends VerticalLayout {
         confirm.open();
     }
 
-    private int safeNotificationDays(ProduceType type) {
-        return type.getNotificationDaysModifier() == null ? 0 : type.getNotificationDaysModifier();
+    private int safeNotificationDays(ItemType type) {
+        Integer notificationDaysModifierVar = type.getNotificationDaysModifier();
+        return notificationDaysModifierVar == null ? 0 : notificationDaysModifierVar;
     }
 
     private void refreshGrid() {
-        grid.setItems(produceTypeService.getAllProduceTypes());
+        grid.setItems(itemTypeService.getAllItemTypes());
     }
 }

@@ -165,7 +165,7 @@ public class DatabaseBackupService {
     }
 
     private DatabaseConnectionInfo parseConnectionInfo(String url) {
-        // Parse jdbc:postgresql://localhost:5432/producedb
+        // Parse jdbc:postgresql://localhost:5432/storagemanagerdb
         String cleanUrl = url.replace("jdbc:postgresql://", "");
         String[] parts = cleanUrl.split("/");
         String[] hostPort = parts[0].split(":");

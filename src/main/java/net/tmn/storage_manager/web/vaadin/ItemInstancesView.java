@@ -26,42 +26,42 @@ import java.util.List;
 import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
-import net.tmn.storage_manager.database.jpa.ProduceInstance;
-import net.tmn.storage_manager.database.jpa.ProduceType;
+import net.tmn.storage_manager.database.jpa.ItemInstance;
+import net.tmn.storage_manager.database.jpa.ItemType;
 import net.tmn.storage_manager.database.jpa.StorageBox;
-import net.tmn.storage_manager.database.jpa.type.ProduceInstanceStatus;
-import net.tmn.storage_manager.service.ProduceInstanceService;
-import net.tmn.storage_manager.service.ProduceTypeService;
+import net.tmn.storage_manager.database.jpa.type.ItemInstanceStatus;
+import net.tmn.storage_manager.service.ItemInstanceService;
+import net.tmn.storage_manager.service.ItemTypeService;
 import net.tmn.storage_manager.service.StorageBoxService;
 
-@Route(value = "produce-instances", layout = MainLayout.class)
-@PageTitle("Produce Instances")
+@Route(value = "item-instances", layout = MainLayout.class)
+@PageTitle("Item Instances")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ProduceInstancesView extends VerticalLayout {
+public class ItemInstancesView extends VerticalLayout {
 
-    final ProduceInstanceService produceInstanceService;
-    final ProduceTypeService produceTypeService;
+    final ItemInstanceService itemInstanceService;
+    final ItemTypeService itemTypeService;
     final StorageBoxService storageBoxService;
-    final Grid<ProduceInstance> grid = new Grid<>(ProduceInstance.class, false);
-    final Binder<ProduceInstance> binder = new Binder<>(ProduceInstance.class);
+    final Grid<ItemInstance> grid = new Grid<>(ItemInstance.class, false);
+    final Binder<ItemInstance> binder = new Binder<>(ItemInstance.class);
     final Dialog dialog = new Dialog();
-    final ComboBox<ProduceType> produceType = new ComboBox<>("Produce type");
+    final ComboBox<ItemType> itemType = new ComboBox<>("Item type");
     final TextField title = new TextField("Title");
     final DatePicker bestBeforeDate = new DatePicker("Best-before date");
     final ComboBox<StorageBox> storageBox = new ComboBox<>("Storage box");
-    final ComboBox<ProduceInstanceStatus> status = new ComboBox<>("Status");
-    final Div produceTypePreview = new Div();
+    final ComboBox<ItemInstanceStatus> status = new ComboBox<>("Status");
+    final Div itemTypePreview = new Div();
 
-    ProduceInstance editedInstance;
-    List<ProduceType> produceTypes = List.of();
+    ItemInstance editedInstance;
+    List<ItemType> itemTypes = List.of();
     List<StorageBox> storageBoxes = List.of();
 
-    public ProduceInstancesView(
-            ProduceInstanceService produceInstanceService,
-            ProduceTypeService produceTypeService,
+    public ItemInstancesView(
+            ItemInstanceService itemInstanceService,
+            ItemTypeService itemTypeService,
             StorageBoxService storageBoxService) {
-        this.produceInstanceService = produceInstanceService;
-        this.produceTypeService = produceTypeService;
+        this.itemInstanceService = itemInstanceService;
+        this.itemTypeService = itemTypeService;
         this.storageBoxService = storageBoxService;
 
         setSizeFull();
@@ -73,11 +73,11 @@ public class ProduceInstancesView extends VerticalLayout {
     }
 
     private HorizontalLayout createHeader() {
-        H2 header = new H2("Produce Instances");
+        H2 header = new H2("Item Instances");
         header.getStyle().set("margin", "0");
 
-        Button create = VaadinViewUtils.primaryButton("Add Produce Instance", VaadinIcon.PLUS);
-        create.addClickListener(event -> openEditor(newProduceInstance()));
+        Button create = VaadinViewUtils.primaryButton("Add Item Instance", VaadinIcon.PLUS);
+        create.addClickListener(event -> openEditor(newItemInstance()));
 
         HorizontalLayout layout = new HorizontalLayout(header, create);
         layout.setWidthFull();
@@ -89,14 +89,12 @@ public class ProduceInstancesView extends VerticalLayout {
 
     private void configureGrid() {
         grid.setSizeFull();
-        grid.setEmptyStateText("No produce instances found.");
-        grid.addColumn(ProduceInstance::getTitle)
+        grid.setEmptyStateText("No item instances found.");
+        grid.addColumn(ItemInstance::getTitle)
                 .setHeader("Title")
                 .setAutoWidth(true)
                 .setFlexGrow(1);
-        grid.addColumn(VaadinViewUtils::produceTypeName)
-                .setHeader("Produce Type")
-                .setAutoWidth(true);
+        grid.addColumn(VaadinViewUtils::itemTypeName).setHeader("Item Type").setAutoWidth(true);
         grid.addColumn(VaadinViewUtils::storageBoxNumber)
                 .setHeader("Storage Box")
                 .setAutoWidth(true);
@@ -112,7 +110,7 @@ public class ProduceInstancesView extends VerticalLayout {
         grid.addComponentColumn(this::actions).setHeader("Actions").setAutoWidth(true);
     }
 
-    private HorizontalLayout actions(ProduceInstance instance) {
+    private HorizontalLayout actions(ItemInstance instance) {
         Button edit = VaadinViewUtils.iconButton(VaadinIcon.EDIT, "Edit");
         edit.addClickListener(event -> openEditor(instance));
 
@@ -124,60 +122,58 @@ public class ProduceInstancesView extends VerticalLayout {
     }
 
     private void configureBinder() {
-        produceType.setItemLabelGenerator(ProduceType::getName);
-        produceType.setRequiredIndicatorVisible(true);
-        produceType.addValueChangeListener(event -> updateProduceTypePreview(event.getValue()));
+        itemType.setItemLabelGenerator(ItemType::getName);
+        itemType.setRequiredIndicatorVisible(true);
+        itemType.addValueChangeListener(event -> updateItemTypePreview(event.getValue()));
 
         title.setRequiredIndicatorVisible(true);
         storageBox.setItemLabelGenerator(box -> "Box #" + box.getBoxNumber());
         storageBox.setRequiredIndicatorVisible(true);
-        status.setItems(ProduceInstanceStatus.values());
+        status.setItems(ItemInstanceStatus.values());
         status.setItemLabelGenerator(VaadinViewUtils::enumLabel);
 
-        binder.forField(produceType)
-                .asRequired("Produce type is required")
-                .bind(ProduceInstance::getProduceType, ProduceInstance::setProduceType);
+        binder.forField(itemType)
+                .asRequired("Item type is required")
+                .bind(ItemInstance::getItemType, ItemInstance::setItemType);
         binder.forField(title)
                 .asRequired("Title is required")
                 .withValidator(value -> value != null && !value.trim().isEmpty(), "Title is required")
-                .bind(ProduceInstance::getTitle, ProduceInstance::setTitle);
+                .bind(ItemInstance::getTitle, ItemInstance::setTitle);
         binder.forField(bestBeforeDate)
                 .asRequired("Best-before date is required")
-                .bind(ProduceInstance::getBestBeforeDate, ProduceInstance::setBestBeforeDate);
+                .bind(ItemInstance::getBestBeforeDate, ItemInstance::setBestBeforeDate);
         binder.forField(storageBox)
                 .asRequired("Storage box is required")
-                .bind(ProduceInstance::getStorageBox, ProduceInstance::setStorageBox);
-        binder.forField(status)
-                .asRequired("Status is required")
-                .bind(ProduceInstance::getStatus, ProduceInstance::setStatus);
+                .bind(ItemInstance::getStorageBox, ItemInstance::setStorageBox);
+        binder.forField(status).asRequired("Status is required").bind(ItemInstance::getStatus, ItemInstance::setStatus);
     }
 
-    private ProduceInstance newProduceInstance() {
-        ProduceInstance instance = new ProduceInstance();
+    private ItemInstance newItemInstance() {
+        ItemInstance instance = new ItemInstance();
         instance.setBestBeforeDate(LocalDate.now());
-        instance.setStatus(ProduceInstanceStatus.ACTIVE);
+        instance.setStatus(ItemInstanceStatus.ACTIVE);
         return instance;
     }
 
-    private void openEditor(ProduceInstance instance) {
+    private void openEditor(ItemInstance instance) {
         editedInstance = instance;
         boolean createMode = instance.getId() == null;
-        produceTypes = produceTypeService.getAllProduceTypes();
+        itemTypes = itemTypeService.getAllItemTypes();
         storageBoxes = storageBoxService.getAllStorageBoxes();
-        produceType.setItems(produceTypes);
+        itemType.setItems(itemTypes);
         storageBox.setItems(storageBoxes);
 
         dialog.removeAll();
-        dialog.setHeaderTitle(createMode ? "Add Produce Instance" : "Edit Produce Instance");
-        produceType.setReadOnly(!createMode);
+        dialog.setHeaderTitle(createMode ? "Add Item Instance" : "Edit Item Instance");
+        itemType.setReadOnly(!createMode);
         status.setVisible(!createMode);
 
         binder.readBean(editedInstance);
         selectMatchingValues();
-        updateProduceTypePreview(produceType.getValue());
+        updateItemTypePreview(itemType.getValue());
 
-        FormLayout form = new FormLayout(produceType, title, bestBeforeDate, storageBox, status, produceTypePreview);
-        form.setColspan(produceTypePreview, 2);
+        FormLayout form = new FormLayout(itemType, title, bestBeforeDate, storageBox, status, itemTypePreview);
+        form.setColspan(itemTypePreview, 2);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("680px", 2));
 
         Button cancel = new Button("Cancel", event -> dialog.close());
@@ -193,8 +189,8 @@ public class ProduceInstancesView extends VerticalLayout {
     }
 
     private void selectMatchingValues() {
-        if (editedInstance.getProduceType() != null) {
-            findMatchingProduceType(editedInstance.getProduceType()).ifPresent(produceType::setValue);
+        if (editedInstance.getItemType() != null) {
+            findMatchingItemType(editedInstance.getItemType()).ifPresent(itemType::setValue);
         }
 
         if (editedInstance.getStorageBox() != null) {
@@ -202,8 +198,8 @@ public class ProduceInstancesView extends VerticalLayout {
         }
     }
 
-    private java.util.Optional<ProduceType> findMatchingProduceType(ProduceType selected) {
-        return produceTypes.stream()
+    private java.util.Optional<ItemType> findMatchingItemType(ItemType selected) {
+        return itemTypes.stream()
                 .filter(type -> Objects.equals(type.getId(), selected.getId()))
                 .findFirst();
     }
@@ -214,9 +210,9 @@ public class ProduceInstancesView extends VerticalLayout {
                 .findFirst();
     }
 
-    private void updateProduceTypePreview(ProduceType selectedProduceType) {
-        produceTypePreview.removeAll();
-        produceTypePreview
+    private void updateItemTypePreview(ItemType selectedItemType) {
+        itemTypePreview.removeAll();
+        itemTypePreview
                 .getStyle()
                 .set("min-height", "180px")
                 .set("border", "1px dashed var(--lumo-contrast-30pct)")
@@ -226,16 +222,16 @@ public class ProduceInstancesView extends VerticalLayout {
                 .set("justify-content", "center")
                 .set("padding", "var(--lumo-space-m)");
 
-        if (VaadinViewUtils.hasImage(selectedProduceType)) {
-            Image image = new Image(VaadinViewUtils.imageUrl(selectedProduceType), selectedProduceType.getName());
+        if (VaadinViewUtils.hasImage(selectedItemType)) {
+            Image image = new Image(VaadinViewUtils.imageUrl(selectedItemType), selectedItemType.getName());
             image.setMaxWidth("100%");
             image.setMaxHeight("220px");
             image.getStyle().set("object-fit", "contain").set("border-radius", "6px");
-            produceTypePreview.add(image);
+            itemTypePreview.add(image);
             return;
         }
 
-        produceTypePreview.add(VaadinViewUtils.emptyText("No image available."));
+        itemTypePreview.add(VaadinViewUtils.emptyText("No image available."));
     }
 
     private void save() {
@@ -244,11 +240,11 @@ public class ProduceInstancesView extends VerticalLayout {
             editedInstance.setTitle(editedInstance.getTitle().trim());
 
             if (editedInstance.getId() == null) {
-                produceInstanceService.createProduceInstance(editedInstance);
-                VaadinViewUtils.success("Produce instance created.");
+                itemInstanceService.createItemInstance(editedInstance);
+                VaadinViewUtils.success("Item instance created.");
             } else {
-                produceInstanceService.updateProduceInstance(editedInstance.getId(), editedInstance);
-                VaadinViewUtils.success("Produce instance updated.");
+                itemInstanceService.updateItemInstance(editedInstance.getId(), editedInstance);
+                VaadinViewUtils.success("Item instance updated.");
             }
             dialog.close();
             refreshGrid();
@@ -259,17 +255,17 @@ public class ProduceInstancesView extends VerticalLayout {
         }
     }
 
-    private void confirmDelete(ProduceInstance instance) {
+    private void confirmDelete(ItemInstance instance) {
         ConfirmDialog confirm = new ConfirmDialog();
-        confirm.setHeader("Delete produce instance");
+        confirm.setHeader("Delete item instance");
         confirm.setText("Delete " + instance.getTitle() + "?");
         confirm.setCancelable(true);
         confirm.setConfirmText("Delete");
         confirm.setConfirmButtonTheme("error primary");
         confirm.addConfirmListener(event -> {
             try {
-                produceInstanceService.deleteProduceInstance(instance.getId());
-                VaadinViewUtils.success("Produce instance deleted.");
+                itemInstanceService.deleteItemInstance(instance.getId());
+                VaadinViewUtils.success("Item instance deleted.");
                 refreshGrid();
             } catch (RuntimeException e) {
                 VaadinViewUtils.error(e.getMessage());
@@ -278,7 +274,7 @@ public class ProduceInstancesView extends VerticalLayout {
         confirm.open();
     }
 
-    private Component statusBadge(ProduceInstanceStatus status) {
+    private Component statusBadge(ItemInstanceStatus status) {
         String theme =
                 switch (status) {
                     case ACTIVE -> "success";
@@ -289,7 +285,7 @@ public class ProduceInstancesView extends VerticalLayout {
         return VaadinViewUtils.badge(VaadinViewUtils.enumLabel(status), theme);
     }
 
-    private Component daysRemainingBadge(ProduceInstance instance) {
+    private Component daysRemainingBadge(ItemInstance instance) {
         if (instance.getBestBeforeDate() == null) {
             return VaadinViewUtils.emptyText("-");
         }
@@ -304,16 +300,16 @@ public class ProduceInstancesView extends VerticalLayout {
         return VaadinViewUtils.badge(daysRemaining + " days", "success");
     }
 
-    private long daysRemaining(ProduceInstance instance) {
+    private long daysRemaining(ItemInstance instance) {
         int notificationDaysModifier =
-                instance.getProduceType() == null || instance.getProduceType().getNotificationDaysModifier() == null
+                instance.getItemType() == null || instance.getItemType().getNotificationDaysModifier() == null
                         ? 0
-                        : instance.getProduceType().getNotificationDaysModifier();
+                        : instance.getItemType().getNotificationDaysModifier();
         return ChronoUnit.DAYS.between(
                 LocalDate.now(), instance.getBestBeforeDate().plusDays(notificationDaysModifier));
     }
 
     private void refreshGrid() {
-        grid.setItems(produceInstanceService.getAllProduceInstances());
+        grid.setItems(itemInstanceService.getAllItemInstances());
     }
 }

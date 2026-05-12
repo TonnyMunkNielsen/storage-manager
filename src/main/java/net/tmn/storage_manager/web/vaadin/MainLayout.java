@@ -16,7 +16,7 @@ public class MainLayout extends AppLayout {
     }
 
     private H1 createTitle() {
-        H1 title = new H1("Produce Manager");
+        H1 title = new H1("Item Manager");
         title.getStyle().set("font-size", "var(--lumo-font-size-l)").set("margin", "0");
         return title;
     }
@@ -25,9 +25,9 @@ public class MainLayout extends AppLayout {
         SideNav nav = new SideNav();
         nav.setLabel("Navigation");
         nav.addItem(new SideNavItem("Dashboard", DashboardView.class, VaadinIcon.DASHBOARD.create()));
-        nav.addItem(new SideNavItem("Produce Types", ProduceTypesView.class, VaadinIcon.TAGS.create()));
+        nav.addItem(new SideNavItem("Item Types", ItemTypesView.class, VaadinIcon.TAGS.create()));
         nav.addItem(new SideNavItem("Storage Boxes", StorageBoxesView.class, VaadinIcon.ARCHIVE.create()));
-        nav.addItem(new SideNavItem("Produces", ProduceInstancesView.class, VaadinIcon.CUBES.create()));
+        nav.addItem(new SideNavItem("Items", ItemInstancesView.class, VaadinIcon.CUBES.create()));
         nav.addItem(new SideNavItem("Notifications", NotificationsView.class, VaadinIcon.BELL.create()));
         return nav;
     }

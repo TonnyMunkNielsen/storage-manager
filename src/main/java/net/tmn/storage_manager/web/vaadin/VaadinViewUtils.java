@@ -13,8 +13,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
-import net.tmn.storage_manager.database.jpa.ProduceInstance;
-import net.tmn.storage_manager.database.jpa.ProduceType;
+import net.tmn.storage_manager.database.jpa.ItemInstance;
+import net.tmn.storage_manager.database.jpa.ItemType;
 import net.tmn.storage_manager.database.jpa.StorageBox;
 
 final class VaadinViewUtils {
@@ -79,29 +79,29 @@ final class VaadinViewUtils {
         return amount == null ? "-" : amount.stripTrailingZeros().toPlainString() + " kr.";
     }
 
-    static String produceTypeName(ProduceInstance produceInstance) {
-        ProduceType produceType = produceInstance.getProduceType();
-        return produceType == null ? "-" : produceType.getName();
+    static String itemTypeName(ItemInstance itemInstance) {
+        ItemType itemType = itemInstance.getItemType();
+        return itemType == null ? "-" : itemType.getName();
     }
 
-    static String storageBoxNumber(ProduceInstance produceInstance) {
-        StorageBox storageBox = produceInstance.getStorageBox();
+    static String storageBoxNumber(ItemInstance itemInstance) {
+        StorageBox storageBox = itemInstance.getStorageBox();
         return storageBox == null ? "-" : String.valueOf(storageBox.getBoxNumber());
     }
 
-    static boolean hasImage(ProduceType produceType) {
-        return produceType != null
-                && produceType.getId() != null
-                && produceType.getImageData() != null
-                && produceType.getImageData().length > 0;
+    static boolean hasImage(ItemType itemType) {
+        return itemType != null
+                && itemType.getId() != null
+                && itemType.getImageData() != null
+                && itemType.getImageData().length > 0;
     }
 
-    static String imageUrl(ProduceType produceType) {
-        return "/api/images/produce-type/" + produceType.getId();
+    static String imageUrl(ItemType itemType) {
+        return "/api/images/item-type/" + itemType.getId();
     }
 
-    static Image thumbnail(ProduceType produceType) {
-        Image image = new Image(imageUrl(produceType), produceType.getName());
+    static Image thumbnail(ItemType itemType) {
+        Image image = new Image(imageUrl(itemType), itemType.getName());
         image.setWidth("52px");
         image.setHeight("52px");
         image.getStyle()
