@@ -19,6 +19,7 @@ import net.tmn.storage_manager.database.jpa.type.NotificationType;
 import net.tmn.storage_manager.database.repository.ItemInstanceRepository;
 import net.tmn.storage_manager.database.repository.NotificationRepository;
 import net.tmn.storage_manager.database.repository.StorageBoxRepository;
+import net.tmn.storage_manager.service.validation.DomainValidator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,7 @@ public class NotificationService {
     NotificationRepository notificationRepository;
     ItemInstanceRepository itemInstanceRepository;
     StorageBoxRepository storageBoxRepository;
+    DomainValidator domainValidator;
 
     @NonFinal
     @Value("${app.notification.console.enabled:true}")
@@ -97,11 +99,11 @@ public class NotificationService {
                 } else {
                     notification.setStatus(NotificationStatus.FAILED);
                 }
-                notificationRepository.save(notification);
+                saveValidated(notification);
             } catch (Exception e) {
                 log.error("Failed to send notification: {}", notification.getId(), e);
                 notification.setStatus(NotificationStatus.FAILED);
-                notificationRepository.save(notification);
+                saveValidated(notification);
             }
         }
     }
@@ -123,7 +125,7 @@ public class NotificationService {
                     .formatted(instance.getTitle(), instance.getBestBeforeDate()));
             notification.setStatus(NotificationStatus.PENDING);
 
-            notificationRepository.save(notification);
+            saveValidated(notification);
             log.info("Created expired notification for item: {}", instance.getTitle());
         }
     }
@@ -158,10 +160,15 @@ public class NotificationService {
                                         LocalDate.now(), instance.getBestBeforeDate())));
                 notification.setStatus(NotificationStatus.PENDING);
 
-                notificationRepository.save(notification);
+                saveValidated(notification);
                 log.info("Created expiry warning notification for item: {}", instance.getTitle());
             }
         }
+    }
+
+    private void saveValidated(Notification notification) {
+        domainValidator.validate(notification);
+        notificationRepository.save(notification);
     }
 
     private String resolveTargetDisplay(Notification notification) {

@@ -9,6 +9,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import net.tmn.storage_manager.database.jpa.StorageBox;
 import net.tmn.storage_manager.database.repository.StorageBoxRepository;
+import net.tmn.storage_manager.service.validation.DomainValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StorageBoxService {
 
     StorageBoxRepository storageBoxRepository;
+    DomainValidator domainValidator;
 
     @Transactional(readOnly = true)
     public List<StorageBox> getAllStorageBoxes() {
@@ -32,11 +34,16 @@ public class StorageBoxService {
 
     @Transactional
     public void createStorageBox(StorageBox box) {
+        validateStorageBox(box);
         storageBoxRepository.save(box);
     }
 
     @Transactional
     public void updateStorageBox(UUID id, StorageBox updatedBox) {
+        if (updatedBox == null) {
+            throw new IllegalArgumentException("Storage box is required");
+        }
+
         StorageBox existing = storageBoxRepository
                 .findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Storage box not found"));
@@ -44,11 +51,20 @@ public class StorageBoxService {
         existing.setDessicantChangedDate(updatedBox.getDessicantChangedDate());
         existing.setStatus(updatedBox.getStatus());
 
+        validateStorageBox(existing);
         storageBoxRepository.save(existing);
     }
 
     @Transactional
     public void deleteStorageBox(UUID id) {
         storageBoxRepository.deleteById(id);
+    }
+
+    private void validateStorageBox(StorageBox box) {
+        if (box == null) {
+            throw new IllegalArgumentException("Storage box is required");
+        }
+
+        domainValidator.validate(box);
     }
 }

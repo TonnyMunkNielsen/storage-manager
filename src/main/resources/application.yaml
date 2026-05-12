@@ -2,9 +2,9 @@ spring:
     application:
         name: storage-manager
     datasource:
-        url: jdbc:postgresql://localhost:5432/storagemanagerdb
-        username: admin
-        password: admin
+        url: ${SPRING_DATASOURCE_URL}
+        username: ${SPRING_DATASOURCE_USERNAME}
+        password: ${SPRING_DATASOURCE_PASSWORD}
         driver-class-name: org.postgresql.Driver
     jpa:
         hibernate:
@@ -39,30 +39,33 @@ logging:
     level:
         net:
             tmn:
-                '[storage_manager]': DEBUG
+                '[storage_manager]': INFO
         org:
             springframework:
-                web: DEBUG
-            flywaydb: DEBUG
+                web: INFO
+            flywaydb: INFO
 
 # Notification Configuration
 app:
     notification:
         home-assistant:
-            enabled: false
-            # TODO: Introduce secrets for these:
-            url:
-            token:
+            enabled: ${APP_NOTIFICATION_HOME_ASSISTANT_ENABLED:false}
+            url: ${APP_NOTIFICATION_HOME_ASSISTANT_URL:}
+            token: ${APP_NOTIFICATION_HOME_ASSISTANT_TOKEN:}
         sms:
-            enabled: false
+            enabled: ${APP_NOTIFICATION_SMS_ENABLED:false}
         console:
-            enabled: true
+            enabled: ${APP_NOTIFICATION_CONSOLE_ENABLED:false}
 
     backup:
         scheduled:
-            enabled: true
+            enabled: ${APP_BACKUP_SCHEDULED_ENABLED:false}
+            cron: ${APP_BACKUP_SCHEDULED_CRON:0 0 2 * * ?}
+        directory: ${APP_BACKUP_DIRECTORY:database_backups}
+        retention:
+            days: ${APP_BACKUP_RETENTION_DAYS:30}
         # Include Flyway metadata in new backups for migration-safe restore flows.
-        include-flyway-history: true
+        include-flyway-history: ${APP_BACKUP_INCLUDE_FLYWAY_HISTORY:true}
 
 vaadin:
-    launch-browser: true
+    launch-browser: false

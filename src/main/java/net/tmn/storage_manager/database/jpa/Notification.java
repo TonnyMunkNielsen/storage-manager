@@ -23,9 +23,11 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.UUID)
     UUID id;
 
+    @NotNull(message = "Notification target is required")
     @Column(name = "target_id", nullable = false, updatable = false)
     UUID targetId;
 
+    @NotNull(message = "Notification target type is required")
     @Enumerated(EnumType.STRING)
     @Column(name = "target_type", nullable = false, updatable = false)
     NotificationTargetType targetType;
@@ -43,6 +45,7 @@ public class Notification {
     LocalDateTime sentAt;
 
     @Enumerated(EnumType.STRING)
+    @NotNull(message = "Notification status is required")
     @Column(name = "status", nullable = false)
     NotificationStatus status = NotificationStatus.PENDING;
 

@@ -16,6 +16,7 @@ import net.tmn.storage_manager.database.jpa.type.ItemInstanceStatus;
 import net.tmn.storage_manager.database.repository.ItemInstanceRepository;
 import net.tmn.storage_manager.database.repository.ItemTypeRepository;
 import net.tmn.storage_manager.database.repository.StorageBoxRepository;
+import net.tmn.storage_manager.service.validation.DomainValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ public class ItemInstanceService {
     ItemInstanceRepository itemInstanceRepository;
     ItemTypeRepository itemTypeRepository;
     StorageBoxRepository storageBoxRepository;
+    DomainValidator domainValidator;
 
     @Transactional(readOnly = true)
     public List<ItemInstance> getAllItemInstances() {
@@ -66,15 +68,17 @@ public class ItemInstanceService {
 
     @Transactional
     public ItemInstance createItemInstance(ItemInstance itemInstance) {
+        validateItemInstance(itemInstance);
         itemInstance.setItemType(resolveItemType(itemInstance));
         itemInstance.setStorageBox(resolveStorageBox(itemInstance));
         applyExpiredStatusIfPastBestBefore(itemInstance);
 
-        return itemInstanceRepository.save(itemInstance);
+        return saveValidated(itemInstance);
     }
 
     @Transactional
     public ItemInstance updateItemInstance(UUID id, ItemInstance updatedItemInstance) {
+        validateItemInstance(updatedItemInstance);
         ItemInstance existingInstance = itemInstanceRepository
                 .findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Item instance not found with id: " + id));
@@ -85,11 +89,15 @@ public class ItemInstanceService {
         existingInstance.setStorageBox(resolveStorageBox(updatedItemInstance));
         applyExpiredStatusIfPastBestBefore(existingInstance);
 
-        return itemInstanceRepository.save(existingInstance);
+        return saveValidated(existingInstance);
     }
 
     @Transactional
     public ItemInstance replaceItemInstance(UUID id, ItemInstance newInstance) {
+        if (newInstance == null) {
+            throw new IllegalArgumentException("Item instance is required");
+        }
+
         ItemInstance existingInstance = itemInstanceRepository
                 .findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Item instance not found with id: " + id));
@@ -97,7 +105,8 @@ public class ItemInstanceService {
         // Create new instance with same item type
         newInstance.setItemType(existingInstance.getItemType());
         newInstance.setStorageBox(resolveReplacementStorageBox(existingInstance, newInstance));
-        ItemInstance savedNewInstance = itemInstanceRepository.save(newInstance);
+        applyExpiredStatusIfPastBestBefore(newInstance);
+        ItemInstance savedNewInstance = saveValidated(newInstance);
 
         // Mark existing instance as replaced
         existingInstance.setStatus(ItemInstanceStatus.REPLACED);
@@ -136,6 +145,19 @@ public class ItemInstanceService {
                 && itemInstance.getBestBeforeDate().isBefore(LocalDate.now())) {
             itemInstance.setStatus(ItemInstanceStatus.EXPIRED);
         }
+    }
+
+    private void validateItemInstance(ItemInstance itemInstance) {
+        if (itemInstance == null) {
+            throw new IllegalArgumentException("Item instance is required");
+        }
+
+        domainValidator.validate(itemInstance);
+    }
+
+    private ItemInstance saveValidated(ItemInstance itemInstance) {
+        domainValidator.validate(itemInstance);
+        return itemInstanceRepository.save(itemInstance);
     }
 
     private ItemType resolveItemType(ItemInstance itemInstance) {

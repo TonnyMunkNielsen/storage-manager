@@ -13,7 +13,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
-import com.vaadin.flow.data.binder.Binder;
+import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -31,7 +31,7 @@ public class StorageBoxesView extends VerticalLayout {
 
     final StorageBoxService storageBoxService;
     final Grid<StorageBox> grid = new Grid<>(StorageBox.class, false);
-    final Binder<StorageBox> binder = new Binder<>(StorageBox.class);
+    final BeanValidationBinder<StorageBox> binder = new BeanValidationBinder<>(StorageBox.class);
     final Dialog dialog = new Dialog();
     final IntegerField boxNumber = new IntegerField("Box number");
     final DatePicker dessicantChangedDate = new DatePicker("Dessicant changed date");
@@ -90,17 +90,15 @@ public class StorageBoxesView extends VerticalLayout {
 
     private void configureBinder() {
         boxNumber.setMin(1);
+        boxNumber.setRequiredIndicatorVisible(true);
+        dessicantChangedDate.setRequiredIndicatorVisible(true);
         status.setItems(StorageBoxStatus.values());
         status.setItemLabelGenerator(VaadinViewUtils::enumLabel);
+        status.setRequiredIndicatorVisible(true);
 
-        binder.forField(boxNumber)
-                .asRequired("Box number is required")
-                .withValidator(value -> value != null && value > 0, "Box number must be positive")
-                .bind(StorageBox::getBoxNumber, StorageBox::setBoxNumber);
-        binder.forField(dessicantChangedDate)
-                .asRequired("Dessicant changed date is required")
-                .bind(StorageBox::getDessicantChangedDate, StorageBox::setDessicantChangedDate);
-        binder.forField(status).asRequired("Status is required").bind(StorageBox::getStatus, StorageBox::setStatus);
+        binder.forField(boxNumber).bind("boxNumber");
+        binder.forField(dessicantChangedDate).bind("dessicantChangedDate");
+        binder.forField(status).bind("status");
     }
 
     private StorageBox newStorageBox() {
@@ -149,7 +147,7 @@ public class StorageBoxesView extends VerticalLayout {
         } catch (ValidationException e) {
             VaadinViewUtils.error("Check the highlighted fields.");
         } catch (RuntimeException e) {
-            VaadinViewUtils.error(e.getMessage());
+            VaadinViewUtils.error(VaadinViewUtils.validationMessage(e));
         }
     }
 
@@ -166,7 +164,7 @@ public class StorageBoxesView extends VerticalLayout {
                 VaadinViewUtils.success("Storage box deleted.");
                 refreshGrid();
             } catch (RuntimeException e) {
-                VaadinViewUtils.error(e.getMessage());
+                VaadinViewUtils.error(VaadinViewUtils.validationMessage(e));
             }
         });
         confirm.open();

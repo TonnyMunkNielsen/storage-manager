@@ -2,16 +2,16 @@ services:
   postgres-storage-manager-db:
     image: postgres:16
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: storagemanagerdb
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
     ports:
       - "5432:5432"
     restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d storagemanagerdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?Set POSTGRES_USER in .env} -d ${POSTGRES_DB:?Set POSTGRES_DB in .env}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -21,8 +21,8 @@ services:
   pgadmin-storage-manager:
     image: dpage/pgadmin4:latest
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:?Set PGADMIN_DEFAULT_EMAIL in .env}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?Set PGADMIN_DEFAULT_PASSWORD in .env}
       PGADMIN_CONFIG_SERVER_MODE: 'False'  # Required for loading servers.json
     ports:
       - "5052:80"
@@ -45,14 +45,22 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-storage-manager-db:5432/storagemanagerdb
-      SPRING_DATASOURCE_USERNAME: admin
-      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-storage-manager-db:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       SPRING_FLYWAY_ENABLED: "true"
-      APP_BACKUP_DIRECTORY: /data/backups
-      APP_BACKUP_SCHEDULED_CRON: "0 0 2 * * ?"
+      APP_NOTIFICATION_HOME_ASSISTANT_ENABLED: "${APP_NOTIFICATION_HOME_ASSISTANT_ENABLED:-false}"
+      APP_NOTIFICATION_HOME_ASSISTANT_URL: "${APP_NOTIFICATION_HOME_ASSISTANT_URL:-}"
+      APP_NOTIFICATION_HOME_ASSISTANT_TOKEN: "${APP_NOTIFICATION_HOME_ASSISTANT_TOKEN:-}"
+      APP_NOTIFICATION_SMS_ENABLED: "${APP_NOTIFICATION_SMS_ENABLED:-false}"
+      APP_NOTIFICATION_CONSOLE_ENABLED: "${APP_NOTIFICATION_CONSOLE_ENABLED:-false}"
+      APP_BACKUP_DIRECTORY: "${APP_BACKUP_DIRECTORY:-/data/backups}"
+      APP_BACKUP_SCHEDULED_ENABLED: "${APP_BACKUP_SCHEDULED_ENABLED:-false}"
+      APP_BACKUP_SCHEDULED_CRON: "${APP_BACKUP_SCHEDULED_CRON:-0 0 2 * * ?}"
+      APP_BACKUP_RETENTION_DAYS: "${APP_BACKUP_RETENTION_DAYS:-30}"
+      APP_BACKUP_INCLUDE_FLYWAY_HISTORY: "${APP_BACKUP_INCLUDE_FLYWAY_HISTORY:-true}"
     volumes:
-      - ./database_backups:/data/backups
+      - ./database_backups:${APP_BACKUP_DIRECTORY:-/data/backups}
     networks:
       - storage-manager-network
 

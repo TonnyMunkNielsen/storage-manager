@@ -8,11 +8,13 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification.Position;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import jakarta.validation.ConstraintViolationException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.stream.Collectors;
 import net.tmn.storage_manager.database.jpa.ItemInstance;
 import net.tmn.storage_manager.database.jpa.ItemType;
 import net.tmn.storage_manager.database.jpa.StorageBox;
@@ -49,6 +51,17 @@ final class VaadinViewUtils {
 
     static void error(String message) {
         show(message, NotificationVariant.LUMO_ERROR);
+    }
+
+    static String validationMessage(Throwable error) {
+        if (error instanceof ConstraintViolationException validationException) {
+            return validationException.getConstraintViolations().stream()
+                    .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+                    .distinct()
+                    .collect(Collectors.joining("; "));
+        }
+
+        return error.getMessage();
     }
 
     static String enumLabel(Enum<?> value) {

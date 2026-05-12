@@ -2,6 +2,7 @@ package net.tmn.storage_manager.database.jpa;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +25,7 @@ public class StorageBox {
     UUID id;
 
     @NotNull(message = "Box number is required")
+    @Positive(message = "Box number must be positive")
     @Column(name = "box_number", nullable = false, updatable = false, unique = true)
     Integer boxNumber;
 
@@ -33,6 +35,7 @@ public class StorageBox {
     LocalDate dessicantChangedDate;
 
     @Enumerated(EnumType.STRING)
+    @NotNull(message = "Status is required")
     @Column(name = "status", nullable = false)
     StorageBoxStatus status = StorageBoxStatus.ACTIVE;
 

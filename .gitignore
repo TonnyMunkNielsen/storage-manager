@@ -1,5 +1,7 @@
 node_modules
 HELP.md
+.env
+!.env.example
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar

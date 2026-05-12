@@ -3,32 +3,21 @@ package net.tmn.storage_manager.web.vaadin;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
-import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.tmn.storage_manager.database.jpa.ItemInstance;
-import net.tmn.storage_manager.database.jpa.ItemType;
-import net.tmn.storage_manager.database.jpa.StorageBox;
 import net.tmn.storage_manager.database.jpa.type.ItemInstanceStatus;
 import net.tmn.storage_manager.service.ItemInstanceService;
 import net.tmn.storage_manager.service.ItemTypeService;
@@ -43,18 +32,10 @@ public class ItemInstancesView extends VerticalLayout {
     final ItemTypeService itemTypeService;
     final StorageBoxService storageBoxService;
     final Grid<ItemInstance> grid = new Grid<>(ItemInstance.class, false);
-    final Binder<ItemInstance> binder = new Binder<>(ItemInstance.class);
     final Dialog dialog = new Dialog();
-    final ComboBox<ItemType> itemType = new ComboBox<>("Item type");
-    final TextField title = new TextField("Title");
-    final DatePicker bestBeforeDate = new DatePicker("Best-before date");
-    final ComboBox<StorageBox> storageBox = new ComboBox<>("Storage box");
-    final ComboBox<ItemInstanceStatus> status = new ComboBox<>("Status");
-    final Div itemTypePreview = new Div();
+    final ItemInstanceForm itemInstanceForm = new ItemInstanceForm();
 
     ItemInstance editedInstance;
-    List<ItemType> itemTypes = List.of();
-    List<StorageBox> storageBoxes = List.of();
 
     public ItemInstancesView(
             ItemInstanceService itemInstanceService,
@@ -67,7 +48,6 @@ public class ItemInstancesView extends VerticalLayout {
         setSizeFull();
         setPadding(true);
         configureGrid();
-        configureBinder();
         add(createHeader(), grid);
         refreshGrid();
     }
@@ -121,33 +101,6 @@ public class ItemInstancesView extends VerticalLayout {
         return new HorizontalLayout(edit, delete);
     }
 
-    private void configureBinder() {
-        itemType.setItemLabelGenerator(ItemType::getName);
-        itemType.setRequiredIndicatorVisible(true);
-        itemType.addValueChangeListener(event -> updateItemTypePreview(event.getValue()));
-
-        title.setRequiredIndicatorVisible(true);
-        storageBox.setItemLabelGenerator(box -> "Box #" + box.getBoxNumber());
-        storageBox.setRequiredIndicatorVisible(true);
-        status.setItems(ItemInstanceStatus.values());
-        status.setItemLabelGenerator(VaadinViewUtils::enumLabel);
-
-        binder.forField(itemType)
-                .asRequired("Item type is required")
-                .bind(ItemInstance::getItemType, ItemInstance::setItemType);
-        binder.forField(title)
-                .asRequired("Title is required")
-                .withValidator(value -> value != null && !value.trim().isEmpty(), "Title is required")
-                .bind(ItemInstance::getTitle, ItemInstance::setTitle);
-        binder.forField(bestBeforeDate)
-                .asRequired("Best-before date is required")
-                .bind(ItemInstance::getBestBeforeDate, ItemInstance::setBestBeforeDate);
-        binder.forField(storageBox)
-                .asRequired("Storage box is required")
-                .bind(ItemInstance::getStorageBox, ItemInstance::setStorageBox);
-        binder.forField(status).asRequired("Status is required").bind(ItemInstance::getStatus, ItemInstance::setStatus);
-    }
-
     private ItemInstance newItemInstance() {
         ItemInstance instance = new ItemInstance();
         instance.setBestBeforeDate(LocalDate.now());
@@ -158,23 +111,11 @@ public class ItemInstancesView extends VerticalLayout {
     private void openEditor(ItemInstance instance) {
         editedInstance = instance;
         boolean createMode = instance.getId() == null;
-        itemTypes = itemTypeService.getAllItemTypes();
-        storageBoxes = storageBoxService.getAllStorageBoxes();
-        itemType.setItems(itemTypes);
-        storageBox.setItems(storageBoxes);
+        itemInstanceForm.setSelectableItems(itemTypeService.getAllItemTypes(), storageBoxService.getAllStorageBoxes());
 
         dialog.removeAll();
         dialog.setHeaderTitle(createMode ? "Add Item Instance" : "Edit Item Instance");
-        itemType.setReadOnly(!createMode);
-        status.setVisible(!createMode);
-
-        binder.readBean(editedInstance);
-        selectMatchingValues();
-        updateItemTypePreview(itemType.getValue());
-
-        FormLayout form = new FormLayout(itemType, title, bestBeforeDate, storageBox, status, itemTypePreview);
-        form.setColspan(itemTypePreview, 2);
-        form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("680px", 2));
+        itemInstanceForm.readBean(editedInstance, createMode);
 
         Button cancel = new Button("Cancel", event -> dialog.close());
         Button save = VaadinViewUtils.primaryButton("Save", VaadinIcon.CHECK);
@@ -184,60 +125,13 @@ public class ItemInstancesView extends VerticalLayout {
         buttons.setJustifyContentMode(JustifyContentMode.END);
         buttons.setWidthFull();
 
-        dialog.add(new VerticalLayout(form, buttons));
+        dialog.add(new VerticalLayout(itemInstanceForm, buttons));
         dialog.open();
-    }
-
-    private void selectMatchingValues() {
-        if (editedInstance.getItemType() != null) {
-            findMatchingItemType(editedInstance.getItemType()).ifPresent(itemType::setValue);
-        }
-
-        if (editedInstance.getStorageBox() != null) {
-            findMatchingStorageBox(editedInstance.getStorageBox()).ifPresent(storageBox::setValue);
-        }
-    }
-
-    private java.util.Optional<ItemType> findMatchingItemType(ItemType selected) {
-        return itemTypes.stream()
-                .filter(type -> Objects.equals(type.getId(), selected.getId()))
-                .findFirst();
-    }
-
-    private java.util.Optional<StorageBox> findMatchingStorageBox(StorageBox selected) {
-        return storageBoxes.stream()
-                .filter(box -> Objects.equals(box.getId(), selected.getId()))
-                .findFirst();
-    }
-
-    private void updateItemTypePreview(ItemType selectedItemType) {
-        itemTypePreview.removeAll();
-        itemTypePreview
-                .getStyle()
-                .set("min-height", "180px")
-                .set("border", "1px dashed var(--lumo-contrast-30pct)")
-                .set("border-radius", "8px")
-                .set("display", "flex")
-                .set("align-items", "center")
-                .set("justify-content", "center")
-                .set("padding", "var(--lumo-space-m)");
-
-        if (VaadinViewUtils.hasImage(selectedItemType)) {
-            Image image = new Image(VaadinViewUtils.imageUrl(selectedItemType), selectedItemType.getName());
-            image.setMaxWidth("100%");
-            image.setMaxHeight("220px");
-            image.getStyle().set("object-fit", "contain").set("border-radius", "6px");
-            itemTypePreview.add(image);
-            return;
-        }
-
-        itemTypePreview.add(VaadinViewUtils.emptyText("No image available."));
     }
 
     private void save() {
         try {
-            binder.writeBean(editedInstance);
-            editedInstance.setTitle(editedInstance.getTitle().trim());
+            itemInstanceForm.writeBean(editedInstance);
 
             if (editedInstance.getId() == null) {
                 itemInstanceService.createItemInstance(editedInstance);
@@ -251,7 +145,7 @@ public class ItemInstancesView extends VerticalLayout {
         } catch (ValidationException e) {
             VaadinViewUtils.error("Check the highlighted fields.");
         } catch (RuntimeException e) {
-            VaadinViewUtils.error(e.getMessage());
+            VaadinViewUtils.error(VaadinViewUtils.validationMessage(e));
         }
     }
 
@@ -268,7 +162,7 @@ public class ItemInstancesView extends VerticalLayout {
                 VaadinViewUtils.success("Item instance deleted.");
                 refreshGrid();
             } catch (RuntimeException e) {
-                VaadinViewUtils.error(e.getMessage());
+                VaadinViewUtils.error(VaadinViewUtils.validationMessage(e));
             }
         });
         confirm.open();

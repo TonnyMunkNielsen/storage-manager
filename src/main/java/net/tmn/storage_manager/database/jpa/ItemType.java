@@ -2,6 +2,8 @@ package net.tmn.storage_manager.database.jpa;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,6 +32,7 @@ public class ItemType {
     String description;
 
     @Column(name = "price", precision = 8, scale = 2)
+    @PositiveOrZero(message = "Price cannot be negative")
     BigDecimal price;
 
     @Column(name = "image_data", columnDefinition = "BYTEA")
@@ -42,7 +45,9 @@ public class ItemType {
     String imageFilename;
 
     @ColumnDefault(value = "0")
-    @Column(name = "notification_days_modifier")
+    @NotNull(message = "Notification days modifier is required")
+    @PositiveOrZero(message = "Notification days cannot be negative")
+    @Column(name = "notification_days_modifier", nullable = false)
     Integer notificationDaysModifier;
 
     @Column(name = "created_at", nullable = false, updatable = false)

@@ -9,7 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ImageValidator {
 
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-    private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/gif");
+    private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
 
     public void validateImage(MultipartFile image) {
         if (image == null || image.isEmpty()) {
@@ -21,7 +21,7 @@ public class ImageValidator {
         }
 
         if (!ALLOWED_TYPES.contains(image.getContentType())) {
-            throw new IllegalArgumentException("Only JPEG, PNG and GIF images are allowed");
+            throw new IllegalArgumentException("Only JPEG, PNG, GIF and WebP images are allowed");
         }
     }
 
@@ -35,7 +35,7 @@ public class ImageValidator {
         }
 
         if (!ALLOWED_TYPES.contains(image.contentType())) {
-            throw new IllegalArgumentException("Only JPEG, PNG and GIF images are allowed");
+            throw new IllegalArgumentException("Only JPEG, PNG, GIF and WebP images are allowed");
         }
     }
 }

@@ -44,6 +44,7 @@ public class ItemInstance {
     LocalDate bestBeforeDate;
 
     @Enumerated(EnumType.STRING)
+    @NotNull(message = "Status is required")
     @Column(name = "status", nullable = false)
     ItemInstanceStatus status = ItemInstanceStatus.ACTIVE;
 

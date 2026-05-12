@@ -1,0 +1,37 @@
+spring:
+    datasource:
+        url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:storagemanagerdb}
+        username: ${POSTGRES_USER:storage_manager}
+        password: ${POSTGRES_PASSWORD:change-this-password}
+
+logging:
+    level:
+        net:
+            tmn:
+                '[storage_manager]': DEBUG
+        org:
+            springframework:
+                web: DEBUG
+            flywaydb: DEBUG
+
+app:
+    notification:
+        home-assistant:
+            enabled: ${APP_NOTIFICATION_HOME_ASSISTANT_ENABLED:false}
+            url: ${APP_NOTIFICATION_HOME_ASSISTANT_URL:}
+            token: ${APP_NOTIFICATION_HOME_ASSISTANT_TOKEN:}
+        sms:
+            enabled: ${APP_NOTIFICATION_SMS_ENABLED:false}
+        console:
+            enabled: ${APP_NOTIFICATION_CONSOLE_ENABLED:false}
+    backup:
+        scheduled:
+            enabled: ${APP_BACKUP_SCHEDULED_ENABLED:false}
+            cron: ${APP_BACKUP_SCHEDULED_CRON:0 0 2 * * ?}
+        directory: ${APP_BACKUP_DIRECTORY:/data/backups}
+        retention:
+            days: ${APP_BACKUP_RETENTION_DAYS:30}
+        include-flyway-history: ${APP_BACKUP_INCLUDE_FLYWAY_HISTORY:true}
+
+vaadin:
+    launch-browser: true

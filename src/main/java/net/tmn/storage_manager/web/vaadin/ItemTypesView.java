@@ -5,29 +5,21 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Anchor;
-import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Image;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.BigDecimalField;
-import com.vaadin.flow.component.textfield.IntegerField;
-import com.vaadin.flow.component.textfield.TextArea;
-import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
-import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
-import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.StreamResource;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import com.vaadin.flow.server.streams.DownloadResponse;
+import com.vaadin.flow.server.streams.UploadHandler;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -37,7 +29,6 @@ import lombok.experimental.FieldDefaults;
 import net.tmn.storage_manager.database.jpa.ItemType;
 import net.tmn.storage_manager.service.ItemTypeService;
 import net.tmn.storage_manager.service.ItemTypeTransferData;
-import net.tmn.storage_manager.service.UploadedImage;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -46,23 +37,16 @@ import tools.jackson.databind.json.JsonMapper;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ItemTypesView extends VerticalLayout {
 
-    static final int MAX_IMAGE_SIZE = 5 * 1024 * 1024;
     static final int MAX_IMPORT_SIZE = 100 * 1024 * 1024;
     static final DateTimeFormatter EXPORT_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     final ItemTypeService itemTypeService;
     final JsonMapper jsonMapper;
     final Grid<ItemType> grid = new Grid<>(ItemType.class, false);
-    final Binder<ItemType> binder = new Binder<>(ItemType.class);
     final Dialog editorDialog = new Dialog();
-    final TextField name = new TextField("Name");
-    final TextArea description = new TextArea("Description");
-    final BigDecimalField price = new BigDecimalField("Price");
-    final IntegerField notificationDaysModifier = new IntegerField("Notification days modifier");
-    final Div imagePreview = new Div();
+    final ItemTypeForm itemTypeForm = new ItemTypeForm();
 
     ItemType editedItemType;
-    UploadedImage uploadedImage;
 
     public ItemTypesView(ItemTypeService itemTypeService, JsonMapper jsonMapper) {
         this.itemTypeService = itemTypeService;
@@ -71,7 +55,6 @@ public class ItemTypesView extends VerticalLayout {
         setSizeFull();
         setPadding(true);
         configureGrid();
-        configureBinder();
         add(createHeader(), grid);
         refreshGrid();
     }
@@ -134,26 +117,6 @@ public class ItemTypesView extends VerticalLayout {
         return new HorizontalLayout(edit, delete);
     }
 
-    private void configureBinder() {
-        name.setRequiredIndicatorVisible(true);
-        description.setMinHeight("110px");
-        price.setPrefixComponent(new Span("kr."));
-        notificationDaysModifier.setMin(0);
-
-        binder.forField(name)
-                .asRequired("Name is required")
-                .withValidator(value -> value != null && !value.trim().isEmpty(), "Name is required")
-                .bind(ItemType::getName, ItemType::setName);
-        binder.forField(description).bind(ItemType::getDescription, ItemType::setDescription);
-        binder.forField(price)
-                .withValidator(value -> value == null || value.signum() >= 0, "Price cannot be negative")
-                .bind(ItemType::getPrice, ItemType::setPrice);
-        binder.forField(notificationDaysModifier)
-                .asRequired("Notification days modifier is required")
-                .withValidator(value -> value != null && value >= 0, "Notification days cannot be negative")
-                .bind(ItemType::getNotificationDaysModifier, ItemType::setNotificationDaysModifier);
-    }
-
     private ItemType newItemType() {
         ItemType itemType = new ItemType();
         itemType.setPrice(BigDecimal.ZERO);
@@ -163,18 +126,10 @@ public class ItemTypesView extends VerticalLayout {
 
     private void openEditor(ItemType itemType) {
         editedItemType = itemType;
-        uploadedImage = null;
 
         editorDialog.removeAll();
         editorDialog.setHeaderTitle(itemType.getId() == null ? "Add Item Type" : "Edit Item Type");
-        binder.readBean(editedItemType);
-        updateImagePreview();
-
-        FormLayout form =
-                new FormLayout(name, description, price, notificationDaysModifier, createImageUpload(), imagePreview);
-        form.setColspan(description, 2);
-        form.setColspan(imagePreview, 2);
-        form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("680px", 2));
+        itemTypeForm.readBean(editedItemType);
 
         Button cancel = new Button("Cancel", event -> editorDialog.close());
         Button save = VaadinViewUtils.primaryButton("Save", VaadinIcon.CHECK);
@@ -184,82 +139,19 @@ public class ItemTypesView extends VerticalLayout {
         buttons.setJustifyContentMode(JustifyContentMode.END);
         buttons.setWidthFull();
 
-        editorDialog.add(new VerticalLayout(form, buttons));
+        editorDialog.add(new VerticalLayout(itemTypeForm, buttons));
         editorDialog.open();
-    }
-
-    private Upload createImageUpload() {
-        MemoryBuffer buffer = new MemoryBuffer();
-        Upload upload = new Upload(buffer);
-        upload.setMaxFiles(1);
-        upload.setMaxFileSize(MAX_IMAGE_SIZE);
-        upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/gif", ".jpg", ".jpeg", ".png", ".gif");
-        upload.setDropAllowed(true);
-        upload.setUploadButton(new Button("Upload Image", VaadinIcon.UPLOAD.create()));
-        upload.addFileRejectedListener(event -> VaadinViewUtils.error(event.getErrorMessage()));
-        upload.addFileRemovedListener(event -> {
-            uploadedImage = null;
-            updateImagePreview();
-        });
-        upload.addSucceededListener(event -> {
-            try {
-                uploadedImage = new UploadedImage(
-                        event.getFileName(),
-                        event.getMIMEType(),
-                        buffer.getInputStream().readAllBytes());
-                updateImagePreview();
-            } catch (IOException e) {
-                uploadedImage = null;
-                VaadinViewUtils.error("Failed to read uploaded image.");
-            }
-        });
-        return upload;
-    }
-
-    private void updateImagePreview() {
-        imagePreview.removeAll();
-        imagePreview
-                .getStyle()
-                .set("min-height", "180px")
-                .set("border", "1px dashed var(--lumo-contrast-30pct)")
-                .set("border-radius", "8px")
-                .set("display", "flex")
-                .set("align-items", "center")
-                .set("justify-content", "center")
-                .set("padding", "var(--lumo-space-m)");
-
-        if (uploadedImage != null && !uploadedImage.isEmpty()) {
-            imagePreview.add(previewImage(
-                    new Image(uploadedImage.bytes(), uploadedImage.filename(), uploadedImage.contentType())));
-            return;
-        }
-
-        if (VaadinViewUtils.hasImage(editedItemType)) {
-            imagePreview.add(
-                    previewImage(new Image(VaadinViewUtils.imageUrl(editedItemType), editedItemType.getName())));
-            return;
-        }
-
-        imagePreview.add(VaadinViewUtils.emptyText("No image selected."));
-    }
-
-    private Image previewImage(Image image) {
-        image.setMaxWidth("100%");
-        image.setMaxHeight("220px");
-        image.getStyle().set("object-fit", "contain").set("border-radius", "6px");
-        return image;
     }
 
     private void save() {
         try {
-            binder.writeBean(editedItemType);
-            editedItemType.setName(editedItemType.getName().trim());
+            itemTypeForm.writeBean(editedItemType);
 
             if (editedItemType.getId() == null) {
-                itemTypeService.createItemType(editedItemType, uploadedImage);
+                itemTypeService.createItemType(editedItemType, itemTypeForm.uploadedImage());
                 VaadinViewUtils.success("Item type created.");
             } else {
-                itemTypeService.updateItemType(editedItemType.getId(), editedItemType, uploadedImage);
+                itemTypeService.updateItemType(editedItemType.getId(), editedItemType, itemTypeForm.uploadedImage());
                 VaadinViewUtils.success("Item type updated.");
             }
             editorDialog.close();
@@ -267,28 +159,28 @@ public class ItemTypesView extends VerticalLayout {
         } catch (ValidationException e) {
             VaadinViewUtils.error("Check the highlighted fields.");
         } catch (RuntimeException e) {
-            VaadinViewUtils.error(e.getMessage());
+            VaadinViewUtils.error(VaadinViewUtils.validationMessage(e));
         }
     }
 
     private Anchor createExportAnchor() {
-        StreamResource resource = new StreamResource(exportFilename(), this::createExportStream);
-        resource.setContentType("application/json");
-
-        Anchor anchor = new Anchor(resource, "");
-        anchor.getElement().setAttribute("download", true);
+        DownloadHandler downloadHandler = DownloadHandler.fromInputStream(event -> createExportResponse());
+        Anchor anchor = new Anchor(downloadHandler, "");
+        anchor.setDownload(true);
         Button export = new Button("Export Data", VaadinIcon.DOWNLOAD.create());
         anchor.add(export);
         return anchor;
     }
 
-    private ByteArrayInputStream createExportStream() {
+    private DownloadResponse createExportResponse() {
+        byte[] bytes;
         try {
-            return new ByteArrayInputStream(jsonMapper.writeValueAsBytes(itemTypeService.exportItemTypes()));
+            bytes = jsonMapper.writeValueAsBytes(itemTypeService.exportItemTypes());
         } catch (JacksonException e) {
-            String fallback = "{\"error\":\"Failed to export item types\"}";
-            return new ByteArrayInputStream(fallback.getBytes(StandardCharsets.UTF_8));
+            bytes = "{\"error\":\"Failed to export item types\"}".getBytes(StandardCharsets.UTF_8);
         }
+        return new DownloadResponse(
+                new ByteArrayInputStream(bytes), exportFilename(), "application/json", bytes.length);
     }
 
     private String exportFilename() {
@@ -296,23 +188,14 @@ public class ItemTypesView extends VerticalLayout {
     }
 
     private Upload createImportUpload() {
-        MemoryBuffer buffer = new MemoryBuffer();
-        Upload upload = new Upload(buffer);
+        Upload upload = new Upload();
+        upload.setUploadHandler(UploadHandler.inMemory((metadata, bytes) -> confirmImport(bytes, upload)));
         upload.setMaxFiles(1);
         upload.setMaxFileSize(MAX_IMPORT_SIZE);
         upload.setAcceptedFileTypes("application/json", ".json");
         upload.setDropAllowed(false);
         upload.setUploadButton(new Button("Import Data", VaadinIcon.UPLOAD_ALT.create()));
         upload.addFileRejectedListener(event -> VaadinViewUtils.error(event.getErrorMessage()));
-        upload.addSucceededListener(event -> {
-            try {
-                byte[] bytes = buffer.getInputStream().readAllBytes();
-                confirmImport(bytes, upload);
-            } catch (IOException e) {
-                VaadinViewUtils.error("Failed to read import file.");
-                upload.clearFileList();
-            }
-        });
         return upload;
     }
 
@@ -332,6 +215,8 @@ public class ItemTypesView extends VerticalLayout {
                 refreshGrid();
             } catch (JacksonException e) {
                 VaadinViewUtils.error("Import failed: " + e.getMessage());
+            } catch (RuntimeException e) {
+                VaadinViewUtils.error("Import failed: " + VaadinViewUtils.validationMessage(e));
             } finally {
                 upload.clearFileList();
             }
@@ -365,7 +250,7 @@ public class ItemTypesView extends VerticalLayout {
                 VaadinViewUtils.success("Item type deleted.");
                 refreshGrid();
             } catch (RuntimeException e) {
-                VaadinViewUtils.error(e.getMessage());
+                VaadinViewUtils.error(VaadinViewUtils.validationMessage(e));
             }
         });
         confirm.open();

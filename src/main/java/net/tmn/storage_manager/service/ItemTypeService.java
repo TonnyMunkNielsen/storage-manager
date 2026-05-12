@@ -9,6 +9,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import net.tmn.storage_manager.database.jpa.ItemType;
 import net.tmn.storage_manager.database.repository.ItemTypeRepository;
+import net.tmn.storage_manager.service.validation.DomainValidator;
 import net.tmn.storage_manager.service.validation.ImageValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ public class ItemTypeService {
 
     ItemTypeRepository itemTypeRepository;
     ImageValidator imageValidator;
+    DomainValidator domainValidator;
 
     @Transactional(readOnly = true)
     public List<ItemType> getAllItemTypes() {
@@ -53,6 +55,9 @@ public class ItemTypeService {
         if (transferData == null) {
             throw new IllegalArgumentException("Import file is empty");
         }
+        if (transferData.schemaVersion() != ItemTypeTransferData.CURRENT_SCHEMA_VERSION) {
+            throw new IllegalArgumentException("Unsupported import schema version: " + transferData.schemaVersion());
+        }
 
         Set<String> importedNames = new LinkedHashSet<>();
         for (ItemTypeTransferData.ItemTypeRecord record : transferData.itemTypes()) {
@@ -61,12 +66,12 @@ public class ItemTypeService {
 
         int importedCount = 0;
         for (ItemTypeTransferData.ItemTypeRecord record : transferData.itemTypes()) {
-            String itemTypeName = record.name().trim();
+            String itemTypeName = normalizeName(record.name());
 
             ItemType itemType = itemTypeRepository.findByName(itemTypeName).orElseGet(ItemType::new);
 
             applyTransferRecord(itemType, record, itemTypeName);
-            itemTypeRepository.save(itemType);
+            saveValidated(itemType);
             importedCount++;
         }
 
@@ -80,13 +85,14 @@ public class ItemTypeService {
 
     @Transactional
     public ItemType createItemType(ItemType itemType, UploadedImage image) {
+        prepareItemTypeForSave(itemType);
         if (itemTypeRepository.existsByName(itemType.getName())) {
             throw new IllegalArgumentException("Item type with name '" + itemType.getName() + "' already exists");
         }
 
         applyImage(itemType, image);
 
-        return itemTypeRepository.save(itemType);
+        return saveValidated(itemType);
     }
 
     @Transactional
@@ -96,12 +102,13 @@ public class ItemTypeService {
 
     @Transactional
     public ItemType updateItemType(UUID id, ItemType updatedItemType, UploadedImage image) {
+        prepareItemTypeForSave(updatedItemType);
         ItemType existingItemType = itemTypeRepository
                 .findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Item type not found with id: " + id));
 
         // Check if name is being changed and if it conflicts with existing names
-        if (!existingItemType.getName().equals(updatedItemType.getName())
+        if (!Objects.equals(existingItemType.getName(), updatedItemType.getName())
                 && itemTypeRepository.existsByName(updatedItemType.getName())) {
             throw new IllegalArgumentException(
                     "Item type with name '" + updatedItemType.getName() + "' already exists");
@@ -114,7 +121,7 @@ public class ItemTypeService {
 
         applyImage(existingItemType, image);
 
-        return itemTypeRepository.save(existingItemType);
+        return saveValidated(existingItemType);
     }
 
     @Transactional
@@ -153,10 +160,37 @@ public class ItemTypeService {
             throw new IllegalArgumentException("Each imported item type must include a name");
         }
 
-        String normalizedName = record.name().trim();
+        String normalizedName = normalizeName(record.name());
         if (!importedNames.add(normalizedName)) {
             throw new IllegalArgumentException("Import file contains duplicate item type name: " + normalizedName);
         }
+
+        ItemType itemType = new ItemType();
+        applyTransferRecord(itemType, record, normalizedName);
+        domainValidator.validate(itemType);
+        imageValidator.validateImage(toUploadedImage(record));
+    }
+
+    private void prepareItemTypeForSave(ItemType itemType) {
+        if (itemType == null) {
+            throw new IllegalArgumentException("Item type is required");
+        }
+
+        itemType.setName(normalizeName(itemType.getName()));
+        domainValidator.validate(itemType);
+    }
+
+    private ItemType saveValidated(ItemType itemType) {
+        domainValidator.validate(itemType);
+        return itemTypeRepository.save(itemType);
+    }
+
+    private String normalizeName(String name) {
+        return name == null ? null : name.trim();
+    }
+
+    private UploadedImage toUploadedImage(ItemTypeTransferData.ItemTypeRecord record) {
+        return new UploadedImage(record.imageFilename(), record.imageContentType(), record.imageData());
     }
 
     private UploadedImage toUploadedImage(MultipartFile image) {
