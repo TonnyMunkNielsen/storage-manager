@@ -331,6 +331,17 @@ docker compose down
 - Add an update procedure for pulling/building a new image without losing the database volume.
 - Re-enable authentication before exposing the app outside a trusted local network.
 
+### Publishing to Maven Central
+
+- Decide whether Maven Central should publish the runnable application artifact, a reusable library module, or both.
+- Add proper Maven publication metadata: group ID, artifact ID, versioning strategy, project name, description, license, SCM URL, and developer information.
+- Configure Gradle `maven-publish` for release artifacts.
+- Configure artifact signing with GPG or another Maven Central compatible signing setup.
+- Set up Sonatype Central Portal publishing credentials outside the repository.
+- Add release tasks for building, testing, signing, and publishing from a clean checkout.
+- Document the release process, including version bumps, tags, changelog updates, and rollback steps.
+- Consider GitHub Actions or another CI workflow for repeatable Maven Central releases.
+
 ### Additional Hardening
 
 - Re-enable and finish Spring Security. The dependency is currently commented out in `build.gradle`.
